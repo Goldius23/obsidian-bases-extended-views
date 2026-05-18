@@ -476,6 +476,18 @@
   height: 100%;
 }
 
+/* ── Drag and drop ── */
+.btk-card.btk-dragging {
+  opacity: 0.4;
+}
+.btk-column.btk-col-drop {
+  outline: 2px dashed var(--interactive-accent);
+  outline-offset: -2px;
+}
+.btk-column.btk-col-drop .btk-column-cards {
+  background: var(--background-primary-alt);
+}
+
 /* ── Compact mode ── */
 .btk-compact .btk-column-cards {
   gap: 3px;

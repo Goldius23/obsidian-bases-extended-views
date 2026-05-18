@@ -256,6 +256,23 @@ export class KanbanView extends Component {
     column.style.width = `${cardWidth}px`;
     column.style.minWidth = `${cardWidth}px`;
 
+    // Drop zone events
+    column.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      column.addClass("btk-col-drop");
+    });
+    column.addEventListener("dragleave", () => {
+      column.removeClass("btk-col-drop");
+    });
+    column.addEventListener("drop", (e) => {
+      e.preventDefault();
+      column.removeClass("btk-col-drop");
+      const filePath = e.dataTransfer!.getData("text/plain");
+      if (filePath) {
+        this.moveCard(filePath, col.key);
+      }
+    });
+
     // Sort entries within this column
     const sortSpec = this.getSort();
     if (sortSpec.length > 0) {
@@ -307,6 +324,16 @@ export class KanbanView extends Component {
     ]);
 
     const card = parent.createDiv("btk-card");
+    card.setAttr("draggable", "true");
+
+    // Drag start → store file path and mark as dragging
+    card.addEventListener("dragstart", (e) => {
+      e.dataTransfer!.setData("text/plain", entry.file.path);
+      card.addClass("btk-dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.removeClass("btk-dragging");
+    });
 
     // Color bar
     if (colorProp) {
@@ -360,6 +387,24 @@ export class KanbanView extends Component {
         });
       }
     }
+  }
+
+  private async moveCard(filePath: string, newValue: string) {
+    const columnProp = this.getColumnProp();
+    const file = this.obsApp.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof TFile)) return;
+
+    await this.obsApp.fileManager.processFrontMatter(
+      file,
+      (fm: Record<string, unknown>) => {
+        if (newValue === "—") {
+          delete fm[columnProp];
+        } else {
+          fm[columnProp] = newValue;
+        }
+      }
+    );
+    // Bases detects the file change → re-runs query → calls onDataUpdated() → render()
   }
 
   private renderEmpty() {

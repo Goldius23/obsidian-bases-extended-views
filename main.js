@@ -920,6 +920,21 @@ var KanbanView = class extends import_obsidian2.Component {
     const column = board.createDiv("btk-column");
     column.style.width = `${cardWidth}px`;
     column.style.minWidth = `${cardWidth}px`;
+    column.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      column.addClass("btk-col-drop");
+    });
+    column.addEventListener("dragleave", () => {
+      column.removeClass("btk-col-drop");
+    });
+    column.addEventListener("drop", (e) => {
+      e.preventDefault();
+      column.removeClass("btk-col-drop");
+      const filePath = e.dataTransfer.getData("text/plain");
+      if (filePath) {
+        this.moveCard(filePath, col.key);
+      }
+    });
     const sortSpec = this.getSort();
     if (sortSpec.length > 0) {
       col.entries = [...col.entries].sort((a, b) => {
@@ -959,6 +974,14 @@ var KanbanView = class extends import_obsidian2.Component {
       "cssclass"
     ]);
     const card = parent.createDiv("btk-card");
+    card.setAttr("draggable", "true");
+    card.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", entry.file.path);
+      card.addClass("btk-dragging");
+    });
+    card.addEventListener("dragend", () => {
+      card.removeClass("btk-dragging");
+    });
     if (colorProp) {
       const cv = getEntryProp(entry, colorProp);
       if (cv != null && String(cv).trim() !== "") {
@@ -1002,6 +1025,21 @@ var KanbanView = class extends import_obsidian2.Component {
         });
       }
     }
+  }
+  async moveCard(filePath, newValue) {
+    const columnProp = this.getColumnProp();
+    const file = this.obsApp.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof import_obsidian2.TFile)) return;
+    await this.obsApp.fileManager.processFrontMatter(
+      file,
+      (fm) => {
+        if (newValue === "\u2014") {
+          delete fm[columnProp];
+        } else {
+          fm[columnProp] = newValue;
+        }
+      }
+    );
   }
   renderEmpty() {
     const empty = this.containerEl.createDiv("btk-empty");
