@@ -18,7 +18,6 @@ export class KanbanView extends Component {
   private obsApp: App;
   private controller: Record<string, unknown>;
   private containerEl: HTMLElement;
-  private compactMode = false;
 
   constructor(app: App, controller: unknown, containerEl: HTMLElement) {
     super();
@@ -152,10 +151,6 @@ export class KanbanView extends Component {
     return 280;
   }
 
-  isCompact(): boolean {
-    return this.compactMode;
-  }
-
   getMaxHeight(): number {
     const vc = this.getViewConfig();
     const data = vc?.data as Record<string, unknown> | undefined;
@@ -228,9 +223,6 @@ export class KanbanView extends Component {
     this.containerEl.empty();
     this.containerEl.addClass("btk-root");
 
-    if (this.isCompact()) this.containerEl.addClass("btk-compact");
-    else this.containerEl.removeClass("btk-compact");
-
     // Max height — clip and scroll board vertically
     const maxH = this.getMaxHeight();
     if (maxH > 0) {
@@ -268,29 +260,11 @@ export class KanbanView extends Component {
 
     const columns = this.buildColumns(limited);
 
-    // ── Toolbar ──
-    this.renderToolbar();
-
     // ── Board ──
     const board = this.containerEl.createDiv("btk-board");
     for (const col of columns) {
       this.renderColumn(board, col);
     }
-  }
-
-  private renderToolbar() {
-    const bar = this.containerEl.createDiv("btk-toolbar");
-    const controls = bar.createDiv("btk-toolbar-controls");
-
-    const compactBtn = controls.createEl("button", {
-      cls: "btk-preset-btn",
-      text: "Compact",
-    });
-    if (this.compactMode) compactBtn.addClass("btk-preset-active");
-    compactBtn.addEventListener("click", () => {
-      this.compactMode = !this.compactMode;
-      this.render();
-    });
   }
 
   private renderColumn(

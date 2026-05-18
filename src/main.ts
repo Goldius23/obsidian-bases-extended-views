@@ -100,16 +100,6 @@ export default class ExtendedViewsPlugin extends Plugin {
               default: 280,
             },
             {
-              displayName: "Compact mode",
-              type: "slider",
-              key: "compact",
-              description: "Tighter card spacing (0=normal, 1=compact)",
-              min: 0,
-              max: 1,
-              step: 1,
-              default: 0,
-            },
-            {
               displayName: "Max height",
               type: "slider",
               key: "maxHeight",

@@ -753,7 +753,6 @@ var IMAGE_EXTS = /* @__PURE__ */ new Set([
 var KanbanView = class extends import_obsidian2.Component {
   constructor(app, controller, containerEl) {
     super();
-    this.compactMode = false;
     this.obsApp = app;
     this.controller = controller;
     this.containerEl = containerEl;
@@ -856,9 +855,6 @@ var KanbanView = class extends import_obsidian2.Component {
     }
     return 280;
   }
-  isCompact() {
-    return this.compactMode;
-  }
   getMaxHeight() {
     const vc = this.getViewConfig();
     const data = vc == null ? void 0 : vc.data;
@@ -910,8 +906,6 @@ var KanbanView = class extends import_obsidian2.Component {
     const results = this.controller.results;
     this.containerEl.empty();
     this.containerEl.addClass("btk-root");
-    if (this.isCompact()) this.containerEl.addClass("btk-compact");
-    else this.containerEl.removeClass("btk-compact");
     const maxH = this.getMaxHeight();
     if (maxH > 0) {
       this.containerEl.style.maxHeight = `${maxH}px`;
@@ -941,24 +935,10 @@ var KanbanView = class extends import_obsidian2.Component {
     const limit = this.getLimit();
     const limited = limit !== null ? entries.slice(0, limit) : entries;
     const columns = this.buildColumns(limited);
-    this.renderToolbar();
     const board = this.containerEl.createDiv("btk-board");
     for (const col of columns) {
       this.renderColumn(board, col);
     }
-  }
-  renderToolbar() {
-    const bar = this.containerEl.createDiv("btk-toolbar");
-    const controls = bar.createDiv("btk-toolbar-controls");
-    const compactBtn = controls.createEl("button", {
-      cls: "btk-preset-btn",
-      text: "Compact"
-    });
-    if (this.compactMode) compactBtn.addClass("btk-preset-active");
-    compactBtn.addEventListener("click", () => {
-      this.compactMode = !this.compactMode;
-      this.render();
-    });
   }
   renderColumn(board, col) {
     const cardWidth = this.getCardWidth();
@@ -1274,16 +1254,6 @@ var ExtendedViewsPlugin = class extends import_obsidian3.Plugin {
               max: 400,
               step: 20,
               default: 280
-            },
-            {
-              displayName: "Compact mode",
-              type: "slider",
-              key: "compact",
-              description: "Tighter card spacing (0=normal, 1=compact)",
-              min: 0,
-              max: 1,
-              step: 1,
-              default: 0
             },
             {
               displayName: "Max height",

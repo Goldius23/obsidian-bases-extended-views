@@ -336,41 +336,6 @@
   min-height: 0;
 }
 
-/* ── Toolbar ── */
-.btk-toolbar {
-  display: flex;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-}
-.btk-toolbar-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-}
-.btk-preset-btn {
-  padding: 2px 8px;
-  font-size: var(--font-ui-smaller);
-  font-weight: var(--font-medium);
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s, 4px);
-  cursor: pointer;
-  line-height: 1.6;
-  transition: background 80ms ease, color 80ms ease;
-}
-.btk-preset-btn:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-.btk-preset-btn.btk-preset-active {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  border-color: var(--interactive-accent);
-}
-
 /* ── Board ── */
 .btk-board {
   flex: 1;
@@ -547,22 +512,6 @@
 }
 .btk-column.btk-col-drop .btk-column-cards {
   background: var(--background-primary-alt);
-}
-
-/* ── Compact mode ── */
-.btk-compact .btk-column-cards {
-  gap: 3px;
-  padding: 0 6px 6px;
-}
-.btk-compact .btk-card {
-  padding: 6px 8px;
-}
-.btk-compact .btk-card-title {
-  font-size: var(--font-ui-smaller);
-  margin-bottom: 1px;
-}
-.btk-compact .btk-card-prop-row {
-  font-size: 10px;
 }
 
 /* ── Empty state ── */
