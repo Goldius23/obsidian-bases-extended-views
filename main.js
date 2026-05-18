@@ -23,7 +23,7 @@ __export(main_exports, {
   default: () => ExtendedViewsPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 
 // src/TimelineView.ts
 var import_obsidian = require("obsidian");
@@ -738,8 +738,280 @@ ${fmtDate(effectiveStart)}${ed ? ` \u2192 ${fmtDate(ed)}` : ""}`
   }
 };
 
+// src/KanbanView.ts
+var import_obsidian2 = require("obsidian");
+var KanbanView = class extends import_obsidian2.Component {
+  constructor(app, controller, containerEl) {
+    super();
+    this.compactMode = false;
+    this.obsApp = app;
+    this.controller = controller;
+    this.containerEl = containerEl;
+  }
+  // ── Lifecycle ──────────────────────────────────────────────────────────
+  onload() {
+    this.containerEl.addClass("btk-root");
+    this.render();
+  }
+  onDataUpdated() {
+    this.render();
+  }
+  onunload() {
+    this.containerEl.empty();
+  }
+  // ── Bases toolbar API ──────────────────────────────────────────────────
+  getSort() {
+    const vc = this.getViewConfig();
+    const raw = vc == null ? void 0 : vc.sort;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((o) => ({
+      prop: typeof o.property === "string" ? stripNamespace(o.property) : "",
+      dir: typeof o.direction === "string" && o.direction.toUpperCase() === "DESC" ? "desc" : "asc"
+    })).filter((s) => s.prop !== "");
+  }
+  getLimit() {
+    const vc = this.getViewConfig();
+    const l = vc == null ? void 0 : vc.limit;
+    return typeof l === "number" && l > 0 ? l : null;
+  }
+  getQuery() {
+    var _a;
+    return (_a = this.controller.query) != null ? _a : null;
+  }
+  saveQuery() {
+    const c = this.controller;
+    if (typeof c.saveQuery === "function") {
+      c.saveQuery();
+    }
+  }
+  getVisibleProperties() {
+    const vc = this.getViewConfig();
+    return Array.isArray(vc == null ? void 0 : vc.order) ? vc.order : [];
+  }
+  togglePropertyVisibility(_prop) {
+    this.render();
+  }
+  onResize() {
+  }
+  getEphemeralState() {
+    return {};
+  }
+  setEphemeralState(_s) {
+  }
+  getViewActions() {
+    return [];
+  }
+  // ── Config helpers ─────────────────────────────────────────────────────
+  getViewConfig() {
+    const c = this.controller;
+    if (typeof c.getViewConfig === "function") {
+      try {
+        return c.getViewConfig();
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+  getConfigProp(key) {
+    var _a, _b, _c;
+    const vc = this.getViewConfig();
+    const data = vc == null ? void 0 : vc.data;
+    const raw = data == null ? void 0 : data[key];
+    if (typeof raw === "string") return stripNamespace(raw);
+    if (raw && typeof raw === "object") {
+      const o = raw;
+      const id = (_c = (_b = (_a = o.propertyId) != null ? _a : o.id) != null ? _b : o.name) != null ? _c : "";
+      return stripNamespace(String(id));
+    }
+    return "";
+  }
+  getColumnProp() {
+    return this.getConfigProp("columnProp") || "status";
+  }
+  getCoverProp() {
+    return this.getConfigProp("coverProp");
+  }
+  getColorProp() {
+    return this.getConfigProp("colorProp");
+  }
+  getCardWidth() {
+    const vc = this.getViewConfig();
+    const data = vc == null ? void 0 : vc.data;
+    const raw = data == null ? void 0 : data.cardWidth;
+    if (typeof raw === "number") return Math.max(160, raw);
+    if (typeof raw === "string") {
+      const n = parseFloat(raw);
+      if (!isNaN(n)) return Math.max(160, n);
+    }
+    return 280;
+  }
+  isCompact() {
+    return this.compactMode;
+  }
+  // ── Column building ────────────────────────────────────────────────────
+  buildColumns(entries) {
+    const prop = this.getColumnProp();
+    const buckets = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      const val = getEntryProp(entry, prop);
+      const key = val != null && String(val).trim() !== "" ? String(val).trim() : "\u2014";
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(entry);
+    }
+    return Array.from(buckets.entries()).sort(([a], [b]) => {
+      if (a === "\u2014") return 1;
+      if (b === "\u2014") return -1;
+      return a.localeCompare(b, void 0, { numeric: true });
+    }).map(([key, entries2]) => ({ key, entries: entries2 }));
+  }
+  // ── Render ─────────────────────────────────────────────────────────────
+  render() {
+    const results = this.controller.results;
+    this.containerEl.empty();
+    this.containerEl.addClass("btk-root");
+    if (this.isCompact()) this.containerEl.addClass("btk-compact");
+    else this.containerEl.removeClass("btk-compact");
+    if (!results || results.size === 0) {
+      this.renderEmpty();
+      return;
+    }
+    let entries = Array.from(results.values());
+    const sortSpec = this.getSort();
+    if (sortSpec.length > 0) {
+      entries.sort((a, b) => {
+        for (const { prop, dir } of sortSpec) {
+          const cmp = compareValues(
+            getEntryProp(a, prop),
+            getEntryProp(b, prop)
+          );
+          if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
+        }
+        return 0;
+      });
+    }
+    const limit = this.getLimit();
+    const limited = limit !== null ? entries.slice(0, limit) : entries;
+    const columns = this.buildColumns(limited);
+    this.renderToolbar();
+    const board = this.containerEl.createDiv("btk-board");
+    for (const col of columns) {
+      this.renderColumn(board, col);
+    }
+  }
+  renderToolbar() {
+    const bar = this.containerEl.createDiv("btk-toolbar");
+    const controls = bar.createDiv("btk-toolbar-controls");
+    const compactBtn = controls.createEl("button", {
+      cls: "btk-preset-btn",
+      text: "Compact"
+    });
+    if (this.compactMode) compactBtn.addClass("btk-preset-active");
+    compactBtn.addEventListener("click", () => {
+      this.compactMode = !this.compactMode;
+      this.render();
+    });
+  }
+  renderColumn(board, col) {
+    const cardWidth = this.getCardWidth();
+    const colorProp = this.getColorProp();
+    const columnProp = this.getColumnProp();
+    const orderedKeys = this.getVisibleProperties();
+    const column = board.createDiv("btk-column");
+    column.style.width = `${cardWidth}px`;
+    column.style.minWidth = `${cardWidth}px`;
+    const sortSpec = this.getSort();
+    if (sortSpec.length > 0) {
+      col.entries = [...col.entries].sort((a, b) => {
+        for (const { prop, dir } of sortSpec) {
+          const cmp = compareValues(
+            getEntryProp(a, prop),
+            getEntryProp(b, prop)
+          );
+          if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
+        }
+        return 0;
+      });
+    }
+    const header = column.createDiv("btk-column-header");
+    header.createSpan({ cls: "btk-col-title", text: col.key });
+    header.createSpan({
+      cls: "btk-col-count",
+      text: String(col.entries.length)
+    });
+    const cards = column.createDiv("btk-column-cards");
+    for (const entry of col.entries) {
+      this.renderCard(
+        cards,
+        entry,
+        columnProp,
+        colorProp,
+        orderedKeys
+      );
+    }
+  }
+  renderCard(parent, entry, columnProp, colorProp, orderedKeys) {
+    var _a, _b, _c;
+    const HIDDEN_ALWAYS = /* @__PURE__ */ new Set([
+      "title",
+      "aliases",
+      "cssclasses",
+      "cssclass"
+    ]);
+    const card = parent.createDiv("btk-card");
+    if (colorProp) {
+      const cv = getEntryProp(entry, colorProp);
+      if (cv != null && String(cv).trim() !== "") {
+        const bar = card.createDiv("btk-card-color-bar");
+        bar.style.background = hashColor(String(cv));
+      }
+    }
+    const title = card.createDiv("btk-card-title");
+    title.setText(entry.file.basename);
+    title.addEventListener("click", () => {
+      this.obsApp.workspace.openLinkText(
+        entry.file.path,
+        "",
+        false
+      );
+    });
+    if (orderedKeys.length > 0) {
+      const props = card.createDiv("btk-card-props");
+      for (const rawKey of orderedKeys) {
+        const stripped = stripNamespace(rawKey);
+        let val;
+        if (rawKey.startsWith("formula.")) {
+          val = getFormulaValue(entry, stripped);
+        } else if (rawKey.startsWith("file.")) {
+          val = getEntryProp(entry, rawKey);
+        } else {
+          val = (_c = (_a = entry.frontmatter) == null ? void 0 : _a[stripped]) != null ? _c : (_b = entry.frontmatter) == null ? void 0 : _b[rawKey];
+          if (columnProp && stripped === columnProp) continue;
+          if (HIDDEN_ALWAYS.has(stripped.toLowerCase()))
+            continue;
+        }
+        if (val == null || val === "") continue;
+        const row = props.createDiv("btk-card-prop-row");
+        row.createSpan({
+          cls: "btk-card-prop-key",
+          text: stripped
+        });
+        row.createSpan({
+          cls: "btk-card-prop-val",
+          text: String(val)
+        });
+      }
+    }
+  }
+  renderEmpty() {
+    const empty = this.containerEl.createDiv("btk-empty");
+    (0, import_obsidian2.setIcon)(empty.createSpan(), "columns-3");
+    empty.createSpan({ text: " No results" });
+  }
+};
+
 // src/main.ts
-var ExtendedViewsPlugin = class extends import_obsidian2.Plugin {
+var ExtendedViewsPlugin = class extends import_obsidian3.Plugin {
   onload() {
     this.registerBasesView("timeline", {
       icon: "clock",
@@ -801,6 +1073,66 @@ var ExtendedViewsPlugin = class extends import_obsidian2.Plugin {
               displayName: "Bar icon",
               type: "property",
               key: "iconProp",
+              filter: (prop) => !prop.startsWith("file."),
+              placeholder: "Property"
+            }
+          ]
+        }
+      ]
+    });
+    this.registerBasesView("kanban", {
+      icon: "columns-3",
+      name: "Kanban",
+      factory: (controller, containerEl) => new KanbanView(this.app, controller, containerEl),
+      options: () => [
+        {
+          displayName: "Layout",
+          type: "group",
+          items: [
+            {
+              displayName: "Card width",
+              type: "slider",
+              key: "cardWidth",
+              description: "Column and card width in pixels",
+              min: 200,
+              max: 400,
+              step: 20,
+              default: 280
+            },
+            {
+              displayName: "Compact mode",
+              type: "slider",
+              key: "compact",
+              description: "Tighter card spacing (0=normal, 1=compact)",
+              min: 0,
+              max: 1,
+              step: 1,
+              default: 0
+            }
+          ]
+        },
+        {
+          displayName: "Properties",
+          type: "group",
+          items: [
+            {
+              displayName: "Column property",
+              type: "property",
+              key: "columnProp",
+              filter: (prop) => !prop.startsWith("file."),
+              placeholder: "Property"
+            },
+            {
+              displayName: "Cover image",
+              type: "property",
+              key: "coverProp",
+              filter: (prop) => !prop.startsWith("file."),
+              placeholder: "Property"
+            },
+            {
+              displayName: "Card color",
+              type: "property",
+              key: "colorProp",
               filter: (prop) => !prop.startsWith("file."),
               placeholder: "Property"
             }

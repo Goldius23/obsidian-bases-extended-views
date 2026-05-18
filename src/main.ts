@@ -1,5 +1,6 @@
 import { Plugin } from "obsidian";
 import { TimelineView } from "./TimelineView";
+import { KanbanView } from "./KanbanView";
 
 // ── Extended Views Plugin ───────────────────────────────────────────────────
 
@@ -77,7 +78,68 @@ export default class ExtendedViewsPlugin extends Plugin {
     });
 
     // ── Kanban view ──
-    // TODO: register kanban view in Phase 1
+    // @ts-ignore
+    this.registerBasesView("kanban", {
+      icon: "columns-3",
+      name: "Kanban",
+      factory: (controller: unknown, containerEl: HTMLElement) =>
+        new KanbanView(this.app, controller, containerEl),
+      options: () => [
+        {
+          displayName: "Layout",
+          type: "group",
+          items: [
+            {
+              displayName: "Card width",
+              type: "slider",
+              key: "cardWidth",
+              description: "Column and card width in pixels",
+              min: 200,
+              max: 400,
+              step: 20,
+              default: 280,
+            },
+            {
+              displayName: "Compact mode",
+              type: "slider",
+              key: "compact",
+              description: "Tighter card spacing (0=normal, 1=compact)",
+              min: 0,
+              max: 1,
+              step: 1,
+              default: 0,
+            },
+          ],
+        },
+        {
+          displayName: "Properties",
+          type: "group",
+          items: [
+            {
+              displayName: "Column property",
+              type: "property",
+              key: "columnProp",
+              filter: (prop: string) => !prop.startsWith("file."),
+              placeholder: "Property",
+            },
+            {
+              displayName: "Cover image",
+              type: "property",
+              key: "coverProp",
+              filter: (prop: string) => !prop.startsWith("file."),
+              placeholder: "Property",
+            },
+            {
+              displayName: "Card color",
+              type: "property",
+              key: "colorProp",
+              filter: (prop: string) => !prop.startsWith("file."),
+              placeholder: "Property",
+            },
+          ],
+        },
+      ],
+    });
   }
 
   onunload() {}

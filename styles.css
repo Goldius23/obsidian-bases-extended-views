@@ -317,3 +317,188 @@
   color: var(--text-faint);
   font-size: var(--font-ui-small);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Kanban View (btk-)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btk-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Toolbar ── */
+.btk-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+.btk-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+}
+.btk-preset-btn {
+  padding: 2px 8px;
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  cursor: pointer;
+  line-height: 1.6;
+  transition: background 80ms ease, color 80ms ease;
+}
+.btk-preset-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.btk-preset-btn.btk-preset-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+/* ── Board ── */
+.btk-board {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: flex-start;
+}
+
+/* ── Column ── */
+.btk-column {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-m, 8px);
+  background: var(--background-secondary);
+  max-height: 100%;
+}
+.btk-column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  flex-shrink: 0;
+}
+.btk-col-title {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+.btk-col-count {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  background: var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+.btk-column-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Card ── */
+.btk-card {
+  position: relative;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 6px);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: box-shadow 100ms ease, border-color 100ms ease;
+  overflow: hidden;
+}
+.btk-card:hover {
+  border-color: var(--background-modifier-border-hover);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.btk-card-title {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.btk-card-title:hover {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+/* ── Card properties ── */
+.btk-card-props {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.btk-card-prop-row {
+  display: flex;
+  gap: 4px;
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btk-card-prop-key {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+.btk-card-prop-val {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Card color bar ── */
+.btk-card-color-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+}
+
+/* ── Compact mode ── */
+.btk-compact .btk-column-cards {
+  gap: 3px;
+  padding: 0 6px 6px;
+}
+.btk-compact .btk-card {
+  padding: 6px 8px;
+}
+.btk-compact .btk-card-title {
+  font-size: var(--font-ui-smaller);
+  margin-bottom: 1px;
+}
+.btk-compact .btk-card-prop-row {
+  font-size: 10px;
+}
+
+/* ── Empty state ── */
+.btk-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px 0;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+}

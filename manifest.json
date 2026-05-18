@@ -1,7 +1,7 @@
 {
   "id": "bases-extended-views",
   "name": "Bases Extended Views",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minAppVersion": "1.10.0",
   "description": "Extended views for Obsidian Bases — Timeline, and more to come.",
   "author": "bases-extended-views",
