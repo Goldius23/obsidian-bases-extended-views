@@ -1,27 +1,33 @@
-# Bases Feed View
+# Bases Extended Views
 
-A custom view plugin for [Obsidian](https://obsidian.md/) Bases that renders notes as a vertical scrollable feed — thumbnail on the left, title and properties on the right.
+Extended views for [Obsidian](https://obsidian.md/) Bases. Currently ships with the **Timeline** view — more views planned.
 
-## Features
+## Timeline View
 
-- Image thumbnails from any frontmatter property (wikilink, URL, or Lucide icon)
-- Configurable image property and size in the Configure view panel
+A horizontal Gantt-style timeline that renders entries with `start_date` and `end_date` properties, with full Bases integration.
+
+### Features
+
+- Horizontal bars spanning from start to end date
+- Milestone diamonds for entries without an end date
+- Fixed left sidebar showing entry title and selected properties
 - Full Sort, Filter, Group by, and Properties panel integration
-- Clickable wikilinks in property values
-- Formula property support
+- Configurable zoom (px/day) and date range padding
+- Date range presets: Auto, 3 months, 6 months, 1 year
+- Weekend column shading and today marker
+- Bar coloring from any property value (HSL hash)
+- Lucide icons on bars from any property value
+- Compact layout toggle for dense views
+- Synchronized horizontal and vertical scrolling
+- Click bars to open the note
 
-## Requirements
+### Requirements
 
 Obsidian 1.10.0+ (Bases API)
 
-## Installation
+### Installation
 
-1. Download the latest release
-2. Extract to `<vault>/.obsidian/plugins/bases-feed-view/`
-3. Enable in Settings → Community Plugins
-4. Add `type: feed` to any `.base` file's views list
-
-Alternativley use [BRAT](https://github.com/TfTHacker/obsidian42-brat) to install via Github link
-
-# DISCLAIMER
-I "vibe coded" this entier project and i hardly know anything about coding. It works on my Setup but I don't know if this will transfer to you. If anybody who knows more about programming than I do wants to improve or modify the Plugin feel free to do so!
+1. Extract to `<vault>/.obsidian/plugins/bases-extended-views/`
+2. Enable in Settings → Community Plugins
+3. Add `type: timeline` to any `.base` file's views list
+4. Configure the start/end date properties in the Configure view panel

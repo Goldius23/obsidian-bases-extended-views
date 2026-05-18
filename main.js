@@ -645,17 +645,18 @@ var TimelineView = class extends import_obsidian.Component {
       );
       bar.style.left = `${leftPx}px`;
       bar.style.width = `${Math.max(durationDays * zoom, 2)}px`;
-      if (iconProp) {
-        const iv = getEntryProp(entry, iconProp);
-        if (iv != null && typeof iv === "string" && iv.trim() !== "") {
-          const iconName = iv.trim().replace(/^lucide-/, "");
-          try {
-            (0, import_obsidian.setIcon)(
-              bar.createDiv("btl-bar-icon"),
-              iconName
-            );
-          } catch (e) {
-          }
+    }
+    const barW = parseFloat(bar.style.width);
+    if (iconProp && barW > 30) {
+      const iv = getEntryProp(entry, iconProp);
+      if (iv != null && typeof iv === "string" && iv.trim() !== "") {
+        const iconName = iv.trim().replace(/^lucide-/, "");
+        try {
+          (0, import_obsidian.setIcon)(
+            bar.createDiv("btl-bar-icon"),
+            iconName
+          );
+        } catch (e) {
         }
       }
     }
@@ -664,9 +665,8 @@ var TimelineView = class extends import_obsidian.Component {
       `${entry.file.basename}
 ${fmtDate(effectiveStart)}${ed ? ` \u2192 ${fmtDate(ed)}` : ""}`
     );
-    const barW = parseFloat(bar.style.width);
     if (barW > 50 && !bar.classList.contains("btl-milestone")) {
-      bar.setText(entry.file.basename);
+      bar.createSpan({ cls: "btl-bar-text", text: entry.file.basename });
     }
     bar.addEventListener("click", (e) => {
       e.stopPropagation();

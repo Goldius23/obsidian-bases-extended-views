@@ -844,20 +844,21 @@ class TimelineView extends Component {
       );
       bar.style.left = `${leftPx}px`;
       bar.style.width = `${Math.max(durationDays * zoom, 2)}px`;
+    }
 
-      // ── Icon property ──
-      if (iconProp) {
-        const iv = getEntryProp(entry, iconProp);
-        if (iv != null && typeof iv === "string" && iv.trim() !== "") {
-          const iconName = iv.trim().replace(/^lucide-/, "");
-          try {
-            setIcon(
-              bar.createDiv("btl-bar-icon"),
-              iconName
-            );
-          } catch {
-            // invalid icon, skip
-          }
+    // ── Icon property (render for all entry types) ──
+    const barW = parseFloat(bar.style.width);
+    if (iconProp && barW > 30) {
+      const iv = getEntryProp(entry, iconProp);
+      if (iv != null && typeof iv === "string" && iv.trim() !== "") {
+        const iconName = iv.trim().replace(/^lucide-/, "");
+        try {
+          setIcon(
+            bar.createDiv("btl-bar-icon"),
+            iconName
+          );
+        } catch {
+          // invalid icon, skip
         }
       }
     }
@@ -870,9 +871,8 @@ class TimelineView extends Component {
     );
 
     // Entry name on bar if wide enough
-    const barW = parseFloat(bar.style.width);
     if (barW > 50 && !bar.classList.contains("btl-milestone")) {
-      bar.setText(entry.file.basename);
+      bar.createSpan({ cls: "btl-bar-text", text: entry.file.basename });
     }
 
     bar.addEventListener("click", (e) => {

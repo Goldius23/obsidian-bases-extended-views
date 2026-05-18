@@ -1,169 +1,5 @@
-.bfv-root {
-  height: 100%;
-  overflow-y: auto;
-  padding: 6px 8px 16px;
-}
-
-.bfv-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* ── Row ── */
-.bfv-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 10px;
-  border-radius: var(--radius-m, 6px);
-  background: var(--background-secondary);
-  cursor: default;
-  transition: background 80ms ease;
-}
-.bfv-row:hover { background: var(--background-modifier-hover); }
-
-/* ── Thumbnail (left column, fixed square) ── */
-.bfv-thumb {
-  flex-shrink: 0;
-  width: var(--bfv-thumb-size, 48px);
-  height: var(--bfv-thumb-size, 48px);
-  border-radius: var(--radius-s, 4px);
-  overflow: hidden;
-  background: var(--background-modifier-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bfv-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.bfv-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-}
-.bfv-icon svg { width: 32px; height: 32px; }
-
-/* ── Content (right column) ── */
-.bfv-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* ── Title ── */
-.bfv-title {
-  font-size: var(--font-ui-medium);
-  font-weight: var(--font-semibold);
-  color: var(--text-normal);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  line-height: 1.3;
-}
-.bfv-title:hover {
-  color: var(--link-color);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-/* ── Property rows ── */
-.bfv-prop {
-  display: flex;
-  align-items: baseline;
-  gap: 0;
-  font-size: var(--font-ui-smaller);
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bfv-prop-key { color: var(--text-faint); }
-.bfv-prop-sep { color: var(--text-faint); margin-right: 3px; }
-.bfv-prop-val { color: var(--text-muted); }
-
-/* ── Tag chips ── */
-.bfv-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
-.bfv-tag {
-  padding: 0 5px;
-  border-radius: 3px;
-  background: var(--background-modifier-border);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  line-height: 1.7;
-  white-space: nowrap;
-}
-
-/* ── Empty state ── */
-.bfv-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 40px 0;
-  color: var(--text-faint);
-  font-size: var(--font-ui-small);
-}
-
-/* ── Configure view settings panel ── */
-.bfv-setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 0;
-}
-.bfv-setting-label {
-  font-size: var(--font-ui-small);
-  color: var(--text-normal);
-}
-.bfv-setting-select {
-  min-width: 140px;
-}
-
-/* ── Group headers ── */
-.bfv-group-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 4px 4px;
-  margin-top: 6px;
-}
-.bfv-group-header:first-child { margin-top: 0; }
-.bfv-group-label {
-  font-size: var(--font-ui-small);
-  font-weight: var(--font-semibold);
-  color: var(--text-normal);
-}
-.bfv-group-count {
-  font-size: var(--font-ui-smaller);
-  color: var(--text-faint);
-  background: var(--background-modifier-border);
-  border-radius: 10px;
-  padding: 0 6px;
-  line-height: 1.6;
-}
-
-/* ── Inline wikilinks ── */
-.bfv-link {
-  color: var(--link-color);
-  cursor: pointer;
-  text-decoration: none;
-}
-.bfv-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   Timeline View (btl-)
+   Bases Extended Views — Timeline (btl-)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .btl-root {
@@ -432,13 +268,20 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 0 4px;
+  padding: 0 2px;
+  flex-shrink: 0;
 }
 .btl-bar-icon svg {
   width: 14px;
   height: 14px;
   color: var(--text-on-accent);
   opacity: 0.85;
+}
+.btl-bar-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
 }
 
 /* ── Compact mode ── */
