@@ -149,6 +149,7 @@ class TimelineView extends Component {
   private controller: Record<string, unknown>;
   private containerEl: HTMLElement;
   private currentPreset = "auto";
+  private compactMode = false;
 
   constructor(app: App, controller: unknown, containerEl: HTMLElement) {
     super();
@@ -296,12 +297,7 @@ class TimelineView extends Component {
   }
 
   isCompact(): boolean {
-    const vc = this.getViewConfig();
-    const data = vc?.data as Record<string, unknown> | undefined;
-    const raw = data?.compact;
-    if (typeof raw === "number") return raw === 1;
-    if (typeof raw === "string") return parseFloat(raw) === 1;
-    return false;
+    return this.compactMode;
   }
 
   getSidebarWidth(): number {
@@ -545,6 +541,9 @@ class TimelineView extends Component {
     }
     timelineInner.style.minHeight = `${totalRows * rowHeight}px`;
 
+    // ── Sync row heights ──
+    this.syncRowHeights(sidebarInner, timelineInner);
+
     // ── Scroll sync ──
     this.syncScroll(headerScroll, timelineScroll, sidebar);
   }
@@ -563,6 +562,20 @@ class TimelineView extends Component {
       if (this.currentPreset === key) btn.addClass("btl-preset-active");
       btn.addEventListener("click", () => this.setPreset(key));
     }
+
+    // Separator
+    controls.createDiv("btl-toolbar-sep");
+
+    // Compact toggle
+    const compactBtn = controls.createEl("button", {
+      cls: "btl-preset-btn",
+      text: "Compact",
+    });
+    if (this.compactMode) compactBtn.addClass("btl-preset-active");
+    compactBtn.addEventListener("click", () => {
+      this.compactMode = !this.compactMode;
+      this.render();
+    });
   }
 
   private renderDateCells(
@@ -587,7 +600,13 @@ class TimelineView extends Component {
         currentMonth = d.getMonth();
         cell.addClass("btl-month-start");
         const monthLabel = d.toLocaleString("default", { month: "short" });
-        cell.setText(`${monthLabel} ${d.getDate()}`);
+        if (zoom >= 50) {
+          cell.setText(`${monthLabel} ${d.getDate()}`);
+        } else if (zoom >= 35) {
+          cell.setText(`${monthLabel[0]} ${d.getDate()}`);
+        } else {
+          cell.setText(`${d.getMonth() + 1}/${d.getDate()}`);
+        }
       } else {
         cell.setText(d.getDate().toString());
       }
@@ -753,7 +772,7 @@ class TimelineView extends Component {
 
     // ── Sidebar row ──
     const sRow = sidebar.createDiv("btl-sidebar-row");
-    sRow.style.height = `${rowHeight}px`;
+    sRow.style.minHeight = `${rowHeight}px`;
 
     const title = sRow.createDiv("btl-sidebar-title");
     title.setText(entry.file.basename);
@@ -849,10 +868,26 @@ class TimelineView extends Component {
         ed ? ` → ${fmtDate(ed)}` : ""
       }`
     );
+
+    // Entry name on bar if wide enough
+    const barW = parseFloat(bar.style.width);
+    if (barW > 50 && !bar.classList.contains("btl-milestone")) {
+      bar.setText(entry.file.basename);
+    }
+
     bar.addEventListener("click", (e) => {
       e.stopPropagation();
       this.obsApp.workspace.openLinkText(entry.file.path, "", false);
     });
+  }
+
+  private syncRowHeights(sidebar: HTMLElement, timeline: HTMLElement) {
+    const sChildren = Array.from(sidebar.children) as HTMLElement[];
+    const tChildren = Array.from(timeline.children) as HTMLElement[];
+    const len = Math.min(sChildren.length, tChildren.length);
+    for (let i = 0; i < len; i++) {
+      tChildren[i].style.height = `${sChildren[i].offsetHeight}px`;
+    }
   }
 
   private syncScroll(
@@ -906,17 +941,23 @@ export default class ExtendedViewsPlugin extends Plugin {
         {
           type: "property",
           key: "startProp",
+          name: "Start date property",
           label: "Start date property",
+          description: "Frontmatter property containing the start date",
         },
         {
           type: "property",
           key: "endProp",
+          name: "End date property",
           label: "End date property",
+          description: "Frontmatter property containing the end date (optional)",
         },
         {
           type: "slider",
           key: "zoom",
+          name: "Zoom",
           label: "Zoom (px/day)",
+          description: "How many pixels wide each day column is",
           min: 20,
           max: 200,
           step: 10,
@@ -924,7 +965,9 @@ export default class ExtendedViewsPlugin extends Plugin {
         {
           type: "slider",
           key: "padding",
+          name: "Range padding",
           label: "Range padding (days)",
+          description: "Extra days to pad before/after the date range",
           min: 0,
           max: 30,
           step: 1,
@@ -932,20 +975,16 @@ export default class ExtendedViewsPlugin extends Plugin {
         {
           type: "property",
           key: "colorProp",
+          name: "Bar color property",
           label: "Bar color property",
+          description: "Property whose value determines bar color",
         },
         {
           type: "property",
           key: "iconProp",
+          name: "Bar icon property",
           label: "Bar icon property",
-        },
-        {
-          type: "slider",
-          key: "compact",
-          label: "Compact layout",
-          min: 0,
-          max: 1,
-          step: 1,
+          description: "Property whose value is a Lucide icon name",
         },
       ],
     });

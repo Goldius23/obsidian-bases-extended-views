@@ -208,6 +208,9 @@
   border-right: 1px solid var(--background-modifier-border);
   user-select: none;
   box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .btl-date-cell.btl-weekend {
   color: var(--text-faint);
@@ -321,6 +324,14 @@
   transition: filter 100ms ease;
   box-sizing: border-box;
   min-width: 2px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-on-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .btl-bar:hover {
   filter: brightness(1.2);
@@ -348,6 +359,12 @@
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
+}
+.btl-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--background-modifier-border);
+  margin: 0 4px;
 }
 
 /* ── Preset buttons ── */
@@ -429,6 +446,7 @@
 .btl-compact .btl-group-header-row,
 .btl-compact .btl-timeline-row {
   border-bottom-width: 0;
+  min-height: 22px;
 }
 .btl-compact .btl-date-cell {
   font-size: 10px;
@@ -436,10 +454,14 @@
 .btl-compact .btl-sidebar-title {
   font-size: var(--font-ui-smaller);
 }
+.btl-compact .btl-sidebar-props {
+  font-size: 10px;
+}
 .btl-compact .btl-bar {
   top: 2px;
   height: calc(100% - 4px);
   border-radius: var(--radius-s, 2px);
+  font-size: 10px;
 }
 
 /* ── Empty state ── */

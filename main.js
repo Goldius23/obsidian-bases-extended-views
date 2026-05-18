@@ -138,6 +138,7 @@ var TimelineView = class extends import_obsidian.Component {
   constructor(app, controller, containerEl) {
     super();
     this.currentPreset = "auto";
+    this.compactMode = false;
     this.obsApp = app;
     this.controller = controller;
     this.containerEl = containerEl;
@@ -255,12 +256,7 @@ var TimelineView = class extends import_obsidian.Component {
     return this.getConfigProp("iconProp");
   }
   isCompact() {
-    const vc = this.getViewConfig();
-    const data = vc == null ? void 0 : vc.data;
-    const raw = data == null ? void 0 : data.compact;
-    if (typeof raw === "number") return raw === 1;
-    if (typeof raw === "string") return parseFloat(raw) === 1;
-    return false;
+    return this.compactMode;
   }
   getSidebarWidth() {
     return 220;
@@ -439,6 +435,7 @@ var TimelineView = class extends import_obsidian.Component {
       );
     }
     timelineInner.style.minHeight = `${totalRows * rowHeight}px`;
+    this.syncRowHeights(sidebarInner, timelineInner);
     this.syncScroll(headerScroll, timelineScroll, sidebar);
   }
   renderToolbar(sidebarWidth) {
@@ -453,6 +450,16 @@ var TimelineView = class extends import_obsidian.Component {
       if (this.currentPreset === key) btn.addClass("btl-preset-active");
       btn.addEventListener("click", () => this.setPreset(key));
     }
+    controls.createDiv("btl-toolbar-sep");
+    const compactBtn = controls.createEl("button", {
+      cls: "btl-preset-btn",
+      text: "Compact"
+    });
+    if (this.compactMode) compactBtn.addClass("btl-preset-active");
+    compactBtn.addEventListener("click", () => {
+      this.compactMode = !this.compactMode;
+      this.render();
+    });
   }
   renderDateCells(parent, range, zoom, totalDays) {
     let currentMonth = -1;
@@ -468,7 +475,13 @@ var TimelineView = class extends import_obsidian.Component {
         currentMonth = d.getMonth();
         cell.addClass("btl-month-start");
         const monthLabel = d.toLocaleString("default", { month: "short" });
-        cell.setText(`${monthLabel} ${d.getDate()}`);
+        if (zoom >= 50) {
+          cell.setText(`${monthLabel} ${d.getDate()}`);
+        } else if (zoom >= 35) {
+          cell.setText(`${monthLabel[0]} ${d.getDate()}`);
+        } else {
+          cell.setText(`${d.getMonth() + 1}/${d.getDate()}`);
+        }
       } else {
         cell.setText(d.getDate().toString());
       }
@@ -576,7 +589,7 @@ var TimelineView = class extends import_obsidian.Component {
       "cssclass"
     ]);
     const sRow = sidebar.createDiv("btl-sidebar-row");
-    sRow.style.height = `${rowHeight}px`;
+    sRow.style.minHeight = `${rowHeight}px`;
     const title = sRow.createDiv("btl-sidebar-title");
     title.setText(entry.file.basename);
     title.addEventListener("click", () => {
@@ -651,10 +664,22 @@ var TimelineView = class extends import_obsidian.Component {
       `${entry.file.basename}
 ${fmtDate(effectiveStart)}${ed ? ` \u2192 ${fmtDate(ed)}` : ""}`
     );
+    const barW = parseFloat(bar.style.width);
+    if (barW > 50 && !bar.classList.contains("btl-milestone")) {
+      bar.setText(entry.file.basename);
+    }
     bar.addEventListener("click", (e) => {
       e.stopPropagation();
       this.obsApp.workspace.openLinkText(entry.file.path, "", false);
     });
+  }
+  syncRowHeights(sidebar, timeline) {
+    const sChildren = Array.from(sidebar.children);
+    const tChildren = Array.from(timeline.children);
+    const len = Math.min(sChildren.length, tChildren.length);
+    for (let i = 0; i < len; i++) {
+      tChildren[i].style.height = `${sChildren[i].offsetHeight}px`;
+    }
   }
   syncScroll(headerScroll, timelineScroll, sidebar) {
     let syncing = false;
@@ -694,17 +719,23 @@ var ExtendedViewsPlugin = class extends import_obsidian.Plugin {
         {
           type: "property",
           key: "startProp",
-          label: "Start date property"
+          name: "Start date property",
+          label: "Start date property",
+          description: "Frontmatter property containing the start date"
         },
         {
           type: "property",
           key: "endProp",
-          label: "End date property"
+          name: "End date property",
+          label: "End date property",
+          description: "Frontmatter property containing the end date (optional)"
         },
         {
           type: "slider",
           key: "zoom",
+          name: "Zoom",
           label: "Zoom (px/day)",
+          description: "How many pixels wide each day column is",
           min: 20,
           max: 200,
           step: 10
@@ -712,7 +743,9 @@ var ExtendedViewsPlugin = class extends import_obsidian.Plugin {
         {
           type: "slider",
           key: "padding",
+          name: "Range padding",
           label: "Range padding (days)",
+          description: "Extra days to pad before/after the date range",
           min: 0,
           max: 30,
           step: 1
@@ -720,20 +753,16 @@ var ExtendedViewsPlugin = class extends import_obsidian.Plugin {
         {
           type: "property",
           key: "colorProp",
-          label: "Bar color property"
+          name: "Bar color property",
+          label: "Bar color property",
+          description: "Property whose value determines bar color"
         },
         {
           type: "property",
           key: "iconProp",
-          label: "Bar icon property"
-        },
-        {
-          type: "slider",
-          key: "compact",
-          label: "Compact layout",
-          min: 0,
-          max: 1,
-          step: 1
+          name: "Bar icon property",
+          label: "Bar icon property",
+          description: "Property whose value is a Lucide icon name"
         }
       ]
     });
