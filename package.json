@@ -1,0 +1,13 @@
+{
+  "name": "bases-extended-views",
+  "version": "0.1.0",
+  "description": "Extended views for Obsidian Bases — Timeline, and more",
+  "main": "main.js",
+  "scripts": {
+    "build": "node esbuild.config.cjs",
+    "dev": "node esbuild.config.cjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

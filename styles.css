@@ -161,3 +161,184 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Timeline View (btl-)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btl-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header (date labels) ── */
+.btl-header {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.btl-header-spacer {
+  flex-shrink: 0;
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+.btl-header-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.btl-header-scroll::-webkit-scrollbar { display: none; }
+
+.btl-header-inner {
+  display: flex;
+  height: 28px;
+}
+
+.btl-date-cell {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  border-right: 1px solid var(--background-modifier-border);
+  user-select: none;
+  box-sizing: border-box;
+}
+.btl-date-cell.btl-weekend {
+  color: var(--text-faint);
+}
+.btl-date-cell.btl-month-start {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+/* ── Body ── */
+.btl-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.btl-sidebar {
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-right: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+.btl-sidebar::-webkit-scrollbar { display: none; }
+
+.btl-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.btl-sidebar-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--background-modifier-border-hover);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.btl-sidebar-title {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  line-height: 1.3;
+}
+.btl-sidebar-title:hover {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+.btl-sidebar-props {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btl-sidebar-prop {
+  margin-right: 6px;
+  color: var(--text-faint);
+}
+
+/* ── Timeline area ── */
+.btl-timeline-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.btl-timeline-inner {
+  position: relative;
+}
+
+/* ── Column backgrounds (weekend shading) ── */
+.btl-col-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  pointer-events: none;
+}
+.btl-col-weekend {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--background-primary-alt);
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+/* ── Timeline rows ── */
+.btl-timeline-row {
+  position: relative;
+  border-bottom: 1px solid var(--background-modifier-border-hover);
+  box-sizing: border-box;
+}
+
+/* ── Bars ── */
+.btl-bar {
+  position: absolute;
+  top: 4px;
+  height: calc(100% - 8px);
+  border-radius: var(--radius-s, 4px);
+  background: var(--interactive-accent);
+  cursor: pointer;
+  transition: filter 100ms ease;
+  box-sizing: border-box;
+  min-width: 2px;
+}
+.btl-bar:hover {
+  filter: brightness(1.2);
+}
+
+/* Milestone diamond */
+.btl-bar.btl-milestone {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+/* ── Empty state ── */
+.btl-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px 0;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+}
