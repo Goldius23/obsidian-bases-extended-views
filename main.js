@@ -42,7 +42,10 @@ function compareValues(a, b) {
   const bd = typeof b === "string" ? Date.parse(b) : NaN;
   if (!isNaN(ad) && !isNaN(bd)) return ad - bd;
   if (Array.isArray(a)) return compareValues(a[0], Array.isArray(b) ? b[0] : b);
-  return String(a).localeCompare(String(b), void 0, { numeric: true, sensitivity: "base" });
+  return String(a).localeCompare(String(b), void 0, {
+    numeric: true,
+    sensitivity: "base"
+  });
 }
 function getEntryProp(entry, prop) {
   var _a, _b, _c, _d, _e, _f, _g;
@@ -108,9 +111,33 @@ function fmtDate(d) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+function hashColor(s) {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = s.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash;
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 50%, 50%)`;
+}
+function midnight(d) {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  return c;
+}
+function dayDiff(a, b) {
+  return (a.getTime() - b.getTime()) / 864e5;
+}
+var PRESETS = {
+  auto: "Auto",
+  "3mo": "3m",
+  "6mo": "6m",
+  "1yr": "1y"
+};
 var TimelineView = class extends import_obsidian.Component {
   constructor(app, controller, containerEl) {
     super();
+    this.currentPreset = "auto";
     this.obsApp = app;
     this.controller = controller;
     this.containerEl = containerEl;
@@ -221,13 +248,27 @@ var TimelineView = class extends import_obsidian.Component {
     }
     return 7;
   }
+  getColorProp() {
+    return this.getConfigProp("colorProp");
+  }
+  getIconProp() {
+    return this.getConfigProp("iconProp");
+  }
+  isCompact() {
+    const vc = this.getViewConfig();
+    const data = vc == null ? void 0 : vc.data;
+    const raw = data == null ? void 0 : data.compact;
+    if (typeof raw === "number") return raw === 1;
+    if (typeof raw === "string") return parseFloat(raw) === 1;
+    return false;
+  }
   getSidebarWidth() {
     return 220;
   }
   getRowHeight() {
-    return 36;
+    return this.isCompact() ? 24 : 36;
   }
-  // ── Date range calculation ─────────────────────────────────────────────
+  // ── Date range ─────────────────────────────────────────────────────────
   calculateDateRange(entries) {
     const startProp = this.getStartProp();
     const endProp = this.getEndProp();
@@ -239,7 +280,7 @@ var TimelineView = class extends import_obsidian.Component {
       const effectiveStart = sd;
       const effectiveEnd = ed != null ? ed : sd;
       if (effectiveStart && effectiveEnd) {
-        if (effectiveStart < effectiveEnd) {
+        if (effectiveStart <= effectiveEnd) {
           minTime = Math.min(minTime, effectiveStart.getTime());
           maxTime = Math.max(maxTime, effectiveEnd.getTime());
         } else {
@@ -252,18 +293,75 @@ var TimelineView = class extends import_obsidian.Component {
       }
     }
     if (minTime === Infinity) return null;
-    const pad = this.getPadding() * 864e5;
-    const start = new Date(minTime - pad);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(maxTime + pad + 864e5);
-    end.setHours(0, 0, 0, 0);
+    let start = midnight(new Date(minTime - this.getPadding() * 864e5));
+    let end = midnight(new Date(maxTime + (this.getPadding() + 1) * 864e5));
+    const presetRange = this.presetDateRange(start, end);
+    if (presetRange) {
+      start = presetRange.start;
+      end = presetRange.end;
+    }
     return { start, end };
+  }
+  presetDateRange(autoStart, autoEnd) {
+    if (this.currentPreset === "auto") return null;
+    const now = /* @__PURE__ */ new Date();
+    let s, e;
+    switch (this.currentPreset) {
+      case "3mo":
+        s = new Date(now.getFullYear(), now.getMonth(), 1);
+        e = new Date(now.getFullYear(), now.getMonth() + 3, 1);
+        break;
+      case "6mo":
+        s = new Date(now.getFullYear(), Math.floor(now.getMonth() / 6) * 6, 1);
+        e = new Date(s.getFullYear(), s.getMonth() + 6, 1);
+        break;
+      case "1yr":
+        s = new Date(now.getFullYear(), 0, 1);
+        e = new Date(now.getFullYear() + 1, 0, 1);
+        break;
+      default:
+        return null;
+    }
+    return { start: s, end: e };
+  }
+  setPreset(preset) {
+    this.currentPreset = preset;
+    this.render();
+  }
+  // ── Group by ───────────────────────────────────────────────────────────
+  buildGroups(entries, vc) {
+    var _a;
+    const gb = vc == null ? void 0 : vc.groupBy;
+    if (!(gb == null ? void 0 : gb.property)) return null;
+    const groupProp = stripNamespace(String(gb.property));
+    const groupDir = String((_a = gb == null ? void 0 : gb.direction) != null ? _a : "").toUpperCase() === "DESC" ? "desc" : "asc";
+    const buckets = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      const raw = getEntryProp(entry, groupProp);
+      let label;
+      if (raw == null || raw === "") label = "\u2014";
+      else if (Array.isArray(raw))
+        label = raw.map((v) => String(v)).join(", ") || "\u2014";
+      else label = String(raw);
+      if (!buckets.has(label)) buckets.set(label, []);
+      buckets.get(label).push(entry);
+    }
+    const sorted = Array.from(buckets.entries()).sort(
+      ([a], [b]) => groupDir === "desc" ? b.localeCompare(a, void 0, { numeric: true }) : a.localeCompare(b, void 0, { numeric: true })
+    );
+    return sorted.map(([key, entries2]) => ({
+      key,
+      count: entries2.length,
+      entries: entries2
+    }));
   }
   // ── Render ─────────────────────────────────────────────────────────────
   render() {
     const results = this.controller.results;
     this.containerEl.empty();
     this.containerEl.addClass("btl-root");
+    if (this.isCompact()) this.containerEl.addClass("btl-compact");
+    else this.containerEl.removeClass("btl-compact");
     if (!results || results.size === 0) {
       this.renderEmpty();
       return;
@@ -288,15 +386,15 @@ var TimelineView = class extends import_obsidian.Component {
       return;
     }
     const zoom = this.getZoom();
-    const totalDays = Math.ceil(
-      (dateRange.end.getTime() - dateRange.start.getTime()) / 864e5
-    );
+    const totalDays = Math.ceil(dayDiff(dateRange.end, dateRange.start));
     const timelineWidth = totalDays * zoom;
     const sidebarWidth = this.getSidebarWidth();
     const rowHeight = this.getRowHeight();
     const limit = this.getLimit();
-    const orderedKeys = this.getVisibleProperties();
     const limited = limit !== null ? entries.slice(0, limit) : entries;
+    const vc = this.getViewConfig();
+    const groups = this.buildGroups(limited, vc);
+    this.renderToolbar(sidebarWidth);
     const header = this.containerEl.createDiv("btl-header");
     header.createDiv("btl-header-spacer").style.width = `${sidebarWidth}px`;
     const headerScroll = header.createDiv("btl-header-scroll");
@@ -311,18 +409,50 @@ var TimelineView = class extends import_obsidian.Component {
     const colBg = timelineScroll.createDiv("btl-col-bg");
     colBg.style.width = `${timelineWidth}px`;
     this.renderColumnBackgrounds(colBg, dateRange, zoom, totalDays);
+    this.renderTodayMarker(colBg, dateRange, zoom, totalDays);
     const timelineInner = timelineScroll.createDiv("btl-timeline-inner");
     timelineInner.style.width = `${timelineWidth}px`;
-    timelineInner.style.minHeight = `${limited.length * rowHeight}px`;
-    this.renderEntryRows(
-      sidebarInner,
-      timelineInner,
-      limited,
-      dateRange,
-      zoom,
-      rowHeight
-    );
+    let totalRows;
+    if (groups) {
+      totalRows = groups.reduce(
+        (sum, g) => sum + 1 + g.entries.length,
+        0
+      );
+      this.renderGroupedBody(
+        sidebarInner,
+        timelineInner,
+        groups,
+        dateRange,
+        zoom,
+        totalDays,
+        rowHeight
+      );
+    } else {
+      totalRows = limited.length;
+      this.renderFlatBody(
+        sidebarInner,
+        timelineInner,
+        limited,
+        dateRange,
+        zoom,
+        rowHeight
+      );
+    }
+    timelineInner.style.minHeight = `${totalRows * rowHeight}px`;
     this.syncScroll(headerScroll, timelineScroll, sidebar);
+  }
+  renderToolbar(sidebarWidth) {
+    const bar = this.containerEl.createDiv("btl-toolbar");
+    bar.createDiv("btl-toolbar-spacer").style.width = `${sidebarWidth}px`;
+    const controls = bar.createDiv("btl-toolbar-controls");
+    for (const [key, label] of Object.entries(PRESETS)) {
+      const btn = controls.createEl("button", {
+        cls: "btl-preset-btn",
+        text: label
+      });
+      if (this.currentPreset === key) btn.addClass("btl-preset-active");
+      btn.addEventListener("click", () => this.setPreset(key));
+    }
   }
   renderDateCells(parent, range, zoom, totalDays) {
     let currentMonth = -1;
@@ -366,9 +496,18 @@ var TimelineView = class extends import_obsidian.Component {
       bg.style.width = `${(totalDays - weekStart) * zoom}px`;
     }
   }
-  renderEntryRows(sidebar, timeline, entries, range, zoom, rowHeight) {
+  renderTodayMarker(parent, range, zoom, totalDays) {
+    const today = midnight(/* @__PURE__ */ new Date());
+    const days = dayDiff(today, range.start);
+    if (days < 0 || days > totalDays) return;
+    const marker = parent.createDiv("btl-today-marker");
+    marker.style.left = `${days * zoom}px`;
+  }
+  renderFlatBody(sidebar, timeline, entries, range, zoom, rowHeight) {
     const startProp = this.getStartProp();
     const endProp = this.getEndProp();
+    const colorProp = this.getColorProp();
+    const iconProp = this.getIconProp();
     const orderedKeys = this.getVisibleProperties();
     for (const entry of entries) {
       this.renderOneRow(
@@ -380,11 +519,55 @@ var TimelineView = class extends import_obsidian.Component {
         rowHeight,
         startProp,
         endProp,
+        colorProp,
+        iconProp,
         orderedKeys
       );
     }
   }
-  renderOneRow(sidebar, timeline, entry, range, zoom, rowHeight, startProp, endProp, orderedKeys) {
+  renderGroupedBody(sidebar, timeline, groups, range, zoom, totalDays, rowHeight) {
+    const startProp = this.getStartProp();
+    const endProp = this.getEndProp();
+    const colorProp = this.getColorProp();
+    const iconProp = this.getIconProp();
+    const orderedKeys = this.getVisibleProperties();
+    for (const group of groups) {
+      this.renderGroupHeader(
+        sidebar,
+        timeline,
+        group.key,
+        group.count,
+        zoom,
+        totalDays,
+        rowHeight
+      );
+      for (const entry of group.entries) {
+        this.renderOneRow(
+          sidebar,
+          timeline,
+          entry,
+          range,
+          zoom,
+          rowHeight,
+          startProp,
+          endProp,
+          colorProp,
+          iconProp,
+          orderedKeys
+        );
+      }
+    }
+  }
+  renderGroupHeader(sidebar, timeline, key, count, zoom, totalDays, rowHeight) {
+    const sRow = sidebar.createDiv("btl-group-header-row");
+    sRow.style.height = `${rowHeight}px`;
+    sRow.createSpan({ cls: "btl-group-label", text: key });
+    sRow.createSpan({ cls: "btl-group-count", text: String(count) });
+    const tRow = timeline.createDiv("btl-group-header-row");
+    tRow.style.height = `${rowHeight}px`;
+    tRow.style.width = `${totalDays * zoom}px`;
+  }
+  renderOneRow(sidebar, timeline, entry, range, zoom, rowHeight, startProp, endProp, colorProp, iconProp, orderedKeys) {
     var _a, _b, _c;
     const HIDDEN_ALWAYS = /* @__PURE__ */ new Set([
       "title",
@@ -429,25 +612,44 @@ var TimelineView = class extends import_obsidian.Component {
     }
     const effectiveStart = sd;
     const effectiveEnd = ed != null ? ed : sd;
-    const durationDays = Math.max(
-      0,
-      (effectiveEnd.getTime() - effectiveStart.getTime()) / 864e5
-    );
-    const leftPx = (effectiveStart.getTime() - range.start.getTime()) / 864e5 * zoom;
+    const leftPx = dayDiff(effectiveStart, range.start) * zoom;
     const bar = tRow.createDiv("btl-bar");
+    if (colorProp) {
+      const cv = getEntryProp(entry, colorProp);
+      if (cv != null && String(cv).trim() !== "") {
+        bar.style.background = hashColor(String(cv));
+      }
+    }
     if (!ed) {
       bar.addClass("btl-milestone");
       const diamondW = Math.max(10, zoom * 0.5);
       bar.style.left = `${leftPx + zoom / 2 - diamondW / 2}px`;
       bar.style.width = `${diamondW}px`;
     } else {
+      const durationDays = Math.max(
+        0,
+        dayDiff(effectiveEnd, effectiveStart)
+      );
       bar.style.left = `${leftPx}px`;
       bar.style.width = `${Math.max(durationDays * zoom, 2)}px`;
+      if (iconProp) {
+        const iv = getEntryProp(entry, iconProp);
+        if (iv != null && typeof iv === "string" && iv.trim() !== "") {
+          const iconName = iv.trim().replace(/^lucide-/, "");
+          try {
+            (0, import_obsidian.setIcon)(
+              bar.createDiv("btl-bar-icon"),
+              iconName
+            );
+          } catch (e) {
+          }
+        }
+      }
     }
     bar.setAttribute(
       "title",
       `${entry.file.basename}
-${fmtDate(effectiveStart)}${ed ? ` -> ${fmtDate(ed)}` : ""}`
+${fmtDate(effectiveStart)}${ed ? ` \u2192 ${fmtDate(ed)}` : ""}`
     );
     bar.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -513,6 +715,24 @@ var ExtendedViewsPlugin = class extends import_obsidian.Plugin {
           label: "Range padding (days)",
           min: 0,
           max: 30,
+          step: 1
+        },
+        {
+          type: "property",
+          key: "colorProp",
+          label: "Bar color property"
+        },
+        {
+          type: "property",
+          key: "iconProp",
+          label: "Bar icon property"
+        },
+        {
+          type: "slider",
+          key: "compact",
+          label: "Compact layout",
+          min: 0,
+          max: 1,
           step: 1
         }
       ]

@@ -42,7 +42,10 @@ function compareValues(a: unknown, b: unknown): number {
   const bd = typeof b === "string" ? Date.parse(b) : NaN;
   if (!isNaN(ad) && !isNaN(bd)) return ad - bd;
   if (Array.isArray(a)) return compareValues(a[0], Array.isArray(b) ? b[0] : b);
-  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+  return String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
 }
 
 function getEntryProp(entry: BasesEntry, prop: string): unknown {
@@ -112,12 +115,40 @@ function fmtDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+function hashColor(s: string): string {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = s.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash;
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h}, 50%, 50%)`;
+}
+
+function midnight(d: Date): Date {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  return c;
+}
+
+function dayDiff(a: Date, b: Date): number {
+  return (a.getTime() - b.getTime()) / 86400000;
+}
+
 // ── TimelineView ───────────────────────────────────────────────────────────
+
+const PRESETS: Record<string, string> = {
+  auto: "Auto",
+  "3mo": "3m",
+  "6mo": "6m",
+  "1yr": "1y",
+};
 
 class TimelineView extends Component {
   private obsApp: App;
   private controller: Record<string, unknown>;
   private containerEl: HTMLElement;
+  private currentPreset = "auto";
 
   constructor(app: App, controller: unknown, containerEl: HTMLElement) {
     super();
@@ -147,14 +178,16 @@ class TimelineView extends Component {
     const vc = this.getViewConfig();
     const raw = vc?.sort;
     if (!Array.isArray(raw)) return [];
-    return (raw as Record<string, unknown>[]).map((o) => ({
-      prop: typeof o.property === "string" ? stripNamespace(o.property) : "",
-      dir:
-        typeof o.direction === "string" &&
-        o.direction.toUpperCase() === "DESC"
-          ? "desc"
-          : "asc",
-    })).filter((s) => s.prop !== "");
+    return (raw as Record<string, unknown>[])
+      .map((o) => ({
+        prop: typeof o.property === "string" ? stripNamespace(o.property) : "",
+        dir:
+          typeof o.direction === "string" &&
+          o.direction.toUpperCase() === "DESC"
+            ? "desc"
+            : "asc",
+      }))
+      .filter((s) => s.prop !== "");
   }
 
   getLimit() {
@@ -254,15 +287,32 @@ class TimelineView extends Component {
     return 7;
   }
 
+  getColorProp(): string {
+    return this.getConfigProp("colorProp");
+  }
+
+  getIconProp(): string {
+    return this.getConfigProp("iconProp");
+  }
+
+  isCompact(): boolean {
+    const vc = this.getViewConfig();
+    const data = vc?.data as Record<string, unknown> | undefined;
+    const raw = data?.compact;
+    if (typeof raw === "number") return raw === 1;
+    if (typeof raw === "string") return parseFloat(raw) === 1;
+    return false;
+  }
+
   getSidebarWidth(): number {
     return 220;
   }
 
   getRowHeight(): number {
-    return 36;
+    return this.isCompact() ? 24 : 36;
   }
 
-  // ── Date range calculation ─────────────────────────────────────────────
+  // ── Date range ─────────────────────────────────────────────────────────
 
   private calculateDateRange(
     entries: BasesEntry[]
@@ -279,7 +329,7 @@ class TimelineView extends Component {
       const effectiveStart = sd;
       const effectiveEnd = ed ?? sd;
       if (effectiveStart && effectiveEnd) {
-        if (effectiveStart < effectiveEnd) {
+        if (effectiveStart <= effectiveEnd) {
           minTime = Math.min(minTime, effectiveStart.getTime());
           maxTime = Math.max(maxTime, effectiveEnd.getTime());
         } else {
@@ -294,17 +344,88 @@ class TimelineView extends Component {
 
     if (minTime === Infinity) return null;
 
-    const pad = this.getPadding() * 86400000;
+    let start = midnight(new Date(minTime - this.getPadding() * 86400000));
+    let end = midnight(new Date(maxTime + (this.getPadding() + 1) * 86400000));
 
-    // Round start to midnight of that day
-    const start = new Date(minTime - pad);
-    start.setHours(0, 0, 0, 0);
-
-    // Round end to end of that day + 1
-    const end = new Date(maxTime + pad + 86400000);
-    end.setHours(0, 0, 0, 0);
+    // Apply date preset override
+    const presetRange = this.presetDateRange(start, end);
+    if (presetRange) {
+      start = presetRange.start;
+      end = presetRange.end;
+    }
 
     return { start, end };
+  }
+
+  private presetDateRange(
+    autoStart: Date,
+    autoEnd: Date
+  ): { start: Date; end: Date } | null {
+    if (this.currentPreset === "auto") return null;
+
+    const now = new Date();
+    let s: Date, e: Date;
+
+    switch (this.currentPreset) {
+      case "3mo":
+        s = new Date(now.getFullYear(), now.getMonth(), 1);
+        e = new Date(now.getFullYear(), now.getMonth() + 3, 1);
+        break;
+      case "6mo":
+        s = new Date(now.getFullYear(), Math.floor(now.getMonth() / 6) * 6, 1);
+        e = new Date(s.getFullYear(), s.getMonth() + 6, 1);
+        break;
+      case "1yr":
+        s = new Date(now.getFullYear(), 0, 1);
+        e = new Date(now.getFullYear() + 1, 0, 1);
+        break;
+      default:
+        return null;
+    }
+
+    return { start: s, end: e };
+  }
+
+  private setPreset(preset: string) {
+    this.currentPreset = preset;
+    this.render();
+  }
+
+  // ── Group by ───────────────────────────────────────────────────────────
+
+  private buildGroups(
+    entries: BasesEntry[],
+    vc: Record<string, unknown> | null
+  ): { key: string; count: number; entries: BasesEntry[] }[] | null {
+    const gb = vc?.groupBy as Record<string, unknown> | undefined;
+    if (!gb?.property) return null;
+    const groupProp = stripNamespace(String(gb.property));
+    const groupDir =
+      String(gb?.direction ?? "").toUpperCase() === "DESC" ? "desc" : "asc";
+
+    const buckets = new Map<string, BasesEntry[]>();
+    for (const entry of entries) {
+      const raw = getEntryProp(entry, groupProp);
+      let label: string;
+      if (raw == null || raw === "") label = "—";
+      else if (Array.isArray(raw))
+        label = raw.map((v) => String(v)).join(", ") || "—";
+      else label = String(raw);
+      if (!buckets.has(label)) buckets.set(label, []);
+      buckets.get(label)!.push(entry);
+    }
+
+    const sorted = Array.from(buckets.entries()).sort(([a], [b]) =>
+      groupDir === "desc"
+        ? b.localeCompare(a, undefined, { numeric: true })
+        : a.localeCompare(b, undefined, { numeric: true })
+    );
+
+    return sorted.map(([key, entries]) => ({
+      key,
+      count: entries.length,
+      entries,
+    }));
   }
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -315,6 +436,9 @@ class TimelineView extends Component {
       | undefined;
     this.containerEl.empty();
     this.containerEl.addClass("btl-root");
+
+    if (this.isCompact()) this.containerEl.addClass("btl-compact");
+    else this.containerEl.removeClass("btl-compact");
 
     if (!results || results.size === 0) {
       this.renderEmpty();
@@ -345,17 +469,21 @@ class TimelineView extends Component {
     }
 
     const zoom = this.getZoom();
-    const totalDays = Math.ceil(
-      (dateRange.end.getTime() - dateRange.start.getTime()) / 86400000
-    );
+    const totalDays = Math.ceil(dayDiff(dateRange.end, dateRange.start));
     const timelineWidth = totalDays * zoom;
     const sidebarWidth = this.getSidebarWidth();
     const rowHeight = this.getRowHeight();
     const limit = this.getLimit();
-    const orderedKeys = this.getVisibleProperties();
 
     // Apply limit
     const limited = limit !== null ? entries.slice(0, limit) : entries;
+
+    // Build groups
+    const vc = this.getViewConfig();
+    const groups = this.buildGroups(limited, vc);
+
+    // ── Toolbar ──
+    this.renderToolbar(sidebarWidth);
 
     // ── Header area ──
     const header = this.containerEl.createDiv("btl-header");
@@ -377,27 +505,64 @@ class TimelineView extends Component {
     // Timeline scroll area
     const timelineScroll = body.createDiv("btl-timeline-scroll");
 
-    // Column backgrounds (weekend shading, etc.)
+    // Column backgrounds
     const colBg = timelineScroll.createDiv("btl-col-bg");
     colBg.style.width = `${timelineWidth}px`;
     this.renderColumnBackgrounds(colBg, dateRange, zoom, totalDays);
 
+    // Today marker
+    this.renderTodayMarker(colBg, dateRange, zoom, totalDays);
+
     // Timeline body
     const timelineInner = timelineScroll.createDiv("btl-timeline-inner");
     timelineInner.style.width = `${timelineWidth}px`;
-    timelineInner.style.minHeight = `${limited.length * rowHeight}px`;
 
-    this.renderEntryRows(
-      sidebarInner,
-      timelineInner,
-      limited,
-      dateRange,
-      zoom,
-      rowHeight
-    );
+    let totalRows: number;
+    if (groups) {
+      totalRows = groups.reduce(
+        (sum, g) => sum + 1 + g.entries.length,
+        0
+      );
+      this.renderGroupedBody(
+        sidebarInner,
+        timelineInner,
+        groups,
+        dateRange,
+        zoom,
+        totalDays,
+        rowHeight
+      );
+    } else {
+      totalRows = limited.length;
+      this.renderFlatBody(
+        sidebarInner,
+        timelineInner,
+        limited,
+        dateRange,
+        zoom,
+        rowHeight
+      );
+    }
+    timelineInner.style.minHeight = `${totalRows * rowHeight}px`;
 
     // ── Scroll sync ──
     this.syncScroll(headerScroll, timelineScroll, sidebar);
+  }
+
+  private renderToolbar(sidebarWidth: number) {
+    const bar = this.containerEl.createDiv("btl-toolbar");
+    bar.createDiv("btl-toolbar-spacer").style.width = `${sidebarWidth}px`;
+    const controls = bar.createDiv("btl-toolbar-controls");
+
+    // Date range presets
+    for (const [key, label] of Object.entries(PRESETS)) {
+      const btn = controls.createEl("button", {
+        cls: "btl-preset-btn",
+        text: label,
+      });
+      if (this.currentPreset === key) btn.addClass("btl-preset-active");
+      btn.addEventListener("click", () => this.setPreset(key));
+    }
   }
 
   private renderDateCells(
@@ -450,7 +615,6 @@ class TimelineView extends Component {
         bg.style.width = `${(i - weekStart) * zoom}px`;
         weekStart = -1;
       }
-
       d.setDate(d.getDate() + 1);
     }
 
@@ -461,7 +625,20 @@ class TimelineView extends Component {
     }
   }
 
-  private renderEntryRows(
+  private renderTodayMarker(
+    parent: HTMLElement,
+    range: { start: Date; end: Date },
+    zoom: number,
+    totalDays: number
+  ) {
+    const today = midnight(new Date());
+    const days = dayDiff(today, range.start);
+    if (days < 0 || days > totalDays) return;
+    const marker = parent.createDiv("btl-today-marker");
+    marker.style.left = `${days * zoom}px`;
+  }
+
+  private renderFlatBody(
     sidebar: HTMLElement,
     timeline: HTMLElement,
     entries: BasesEntry[],
@@ -471,6 +648,8 @@ class TimelineView extends Component {
   ) {
     const startProp = this.getStartProp();
     const endProp = this.getEndProp();
+    const colorProp = this.getColorProp();
+    const iconProp = this.getIconProp();
     const orderedKeys = this.getVisibleProperties();
 
     for (const entry of entries) {
@@ -483,9 +662,73 @@ class TimelineView extends Component {
         rowHeight,
         startProp,
         endProp,
+        colorProp,
+        iconProp,
         orderedKeys
       );
     }
+  }
+
+  private renderGroupedBody(
+    sidebar: HTMLElement,
+    timeline: HTMLElement,
+    groups: { key: string; count: number; entries: BasesEntry[] }[],
+    range: { start: Date; end: Date },
+    zoom: number,
+    totalDays: number,
+    rowHeight: number
+  ) {
+    const startProp = this.getStartProp();
+    const endProp = this.getEndProp();
+    const colorProp = this.getColorProp();
+    const iconProp = this.getIconProp();
+    const orderedKeys = this.getVisibleProperties();
+
+    for (const group of groups) {
+      this.renderGroupHeader(
+        sidebar,
+        timeline,
+        group.key,
+        group.count,
+        zoom,
+        totalDays,
+        rowHeight
+      );
+      for (const entry of group.entries) {
+        this.renderOneRow(
+          sidebar,
+          timeline,
+          entry,
+          range,
+          zoom,
+          rowHeight,
+          startProp,
+          endProp,
+          colorProp,
+          iconProp,
+          orderedKeys
+        );
+      }
+    }
+  }
+
+  private renderGroupHeader(
+    sidebar: HTMLElement,
+    timeline: HTMLElement,
+    key: string,
+    count: number,
+    zoom: number,
+    totalDays: number,
+    rowHeight: number
+  ) {
+    const sRow = sidebar.createDiv("btl-group-header-row");
+    sRow.style.height = `${rowHeight}px`;
+    sRow.createSpan({ cls: "btl-group-label", text: key });
+    sRow.createSpan({ cls: "btl-group-count", text: String(count) });
+
+    const tRow = timeline.createDiv("btl-group-header-row");
+    tRow.style.height = `${rowHeight}px`;
+    tRow.style.width = `${totalDays * zoom}px`;
   }
 
   private renderOneRow(
@@ -497,6 +740,8 @@ class TimelineView extends Component {
     rowHeight: number,
     startProp: string,
     endProp: string,
+    colorProp: string,
+    iconProp: string,
     orderedKeys: string[]
   ) {
     const HIDDEN_ALWAYS = new Set([
@@ -554,31 +799,54 @@ class TimelineView extends Component {
 
     const effectiveStart = sd!;
     const effectiveEnd = ed ?? sd!;
-    const durationDays = Math.max(
-      0,
-      (effectiveEnd.getTime() - effectiveStart.getTime()) / 86400000
-    );
 
-    const leftPx =
-      ((effectiveStart.getTime() - range.start.getTime()) / 86400000) * zoom;
+    const leftPx = dayDiff(effectiveStart, range.start) * zoom;
 
     const bar = tRow.createDiv("btl-bar");
 
+    // ── Color property ──
+    if (colorProp) {
+      const cv = getEntryProp(entry, colorProp);
+      if (cv != null && String(cv).trim() !== "") {
+        bar.style.background = hashColor(String(cv));
+      }
+    }
+
     if (!ed) {
-      // Milestone: diamond shape centered on the day
+      // Milestone: diamond centered on the day column
       bar.addClass("btl-milestone");
       const diamondW = Math.max(10, zoom * 0.5);
       bar.style.left = `${leftPx + zoom / 2 - diamondW / 2}px`;
       bar.style.width = `${diamondW}px`;
     } else {
+      const durationDays = Math.max(
+        0,
+        dayDiff(effectiveEnd, effectiveStart)
+      );
       bar.style.left = `${leftPx}px`;
       bar.style.width = `${Math.max(durationDays * zoom, 2)}px`;
+
+      // ── Icon property ──
+      if (iconProp) {
+        const iv = getEntryProp(entry, iconProp);
+        if (iv != null && typeof iv === "string" && iv.trim() !== "") {
+          const iconName = iv.trim().replace(/^lucide-/, "");
+          try {
+            setIcon(
+              bar.createDiv("btl-bar-icon"),
+              iconName
+            );
+          } catch {
+            // invalid icon, skip
+          }
+        }
+      }
     }
 
     bar.setAttribute(
       "title",
       `${entry.file.basename}\n${fmtDate(effectiveStart)}${
-        ed ? ` -> ${fmtDate(ed)}` : ""
+        ed ? ` → ${fmtDate(ed)}` : ""
       }`
     );
     bar.addEventListener("click", (e) => {
@@ -659,6 +927,24 @@ export default class ExtendedViewsPlugin extends Plugin {
           label: "Range padding (days)",
           min: 0,
           max: 30,
+          step: 1,
+        },
+        {
+          type: "property",
+          key: "colorProp",
+          label: "Bar color property",
+        },
+        {
+          type: "property",
+          key: "iconProp",
+          label: "Bar icon property",
+        },
+        {
+          type: "slider",
+          key: "compact",
+          label: "Compact layout",
+          min: 0,
+          max: 1,
           step: 1,
         },
       ],

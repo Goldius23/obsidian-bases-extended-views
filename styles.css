@@ -332,6 +332,116 @@
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
 }
 
+/* ── Toolbar ── */
+.btl-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+.btl-toolbar-spacer {
+  flex-shrink: 0;
+  border-right: 1px solid var(--background-modifier-border);
+}
+.btl-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+}
+
+/* ── Preset buttons ── */
+.btl-preset-btn {
+  padding: 2px 8px;
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  cursor: pointer;
+  line-height: 1.6;
+  transition: background 80ms ease, color 80ms ease;
+}
+.btl-preset-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.btl-preset-btn.btl-preset-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+/* ── Today marker ── */
+.btl-today-marker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--text-error);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Group headers ── */
+.btl-group-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  background: var(--background-primary-alt);
+  border-bottom: 1px solid var(--background-modifier-border);
+  box-sizing: border-box;
+}
+.btl-group-label {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+.btl-group-count {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  background: var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+
+/* ── Bar icon ── */
+.btl-bar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 4px;
+}
+.btl-bar-icon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-on-accent);
+  opacity: 0.85;
+}
+
+/* ── Compact mode ── */
+.btl-compact .btl-sidebar-row,
+.btl-compact .btl-group-header-row,
+.btl-compact .btl-timeline-row {
+  border-bottom-width: 0;
+}
+.btl-compact .btl-date-cell {
+  font-size: 10px;
+}
+.btl-compact .btl-sidebar-title {
+  font-size: var(--font-ui-smaller);
+}
+.btl-compact .btl-bar {
+  top: 2px;
+  height: calc(100% - 4px);
+  border-radius: var(--radius-s, 2px);
+}
+
 /* ── Empty state ── */
 .btl-empty {
   display: flex;
