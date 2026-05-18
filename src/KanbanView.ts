@@ -154,12 +154,36 @@ export class KanbanView extends Component {
 
   // ── Column building ────────────────────────────────────────────────────
 
+  private getAllVaultColumnValues(): Set<string> {
+    const prop = this.getColumnProp();
+    const values = new Set<string>();
+    const cache = this.obsApp.metadataCache;
+
+    for (const file of this.obsApp.vault.getMarkdownFiles()) {
+      const fm = cache.getFileCache(file)?.frontmatter;
+      if (fm && prop in fm) {
+        const val = fm[prop];
+        if (val != null && String(val).trim() !== "") {
+          values.add(String(val).trim());
+        }
+      }
+    }
+
+    return values;
+  }
+
   private buildColumns(
     entries: BasesEntry[]
   ): { key: string; entries: BasesEntry[] }[] {
     const prop = this.getColumnProp();
     const buckets = new Map<string, BasesEntry[]>();
 
+    // Seed every vault-wide value as an empty column
+    for (const key of this.getAllVaultColumnValues()) {
+      buckets.set(key, []);
+    }
+
+    // Fill with current results
     for (const entry of entries) {
       const val = getEntryProp(entry, prop);
       const key =
@@ -298,6 +322,10 @@ export class KanbanView extends Component {
 
     // Cards
     const cards = column.createDiv("btk-column-cards");
+    if (col.entries.length === 0) {
+      const empty = cards.createDiv("btk-col-empty");
+      empty.setText("Drop here");
+    }
     for (const entry of col.entries) {
       this.renderCard(
         cards,

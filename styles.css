@@ -412,6 +412,18 @@
   flex-direction: column;
   gap: 6px;
 }
+.btk-col-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  min-height: 60px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  margin: 4px 0;
+}
 
 /* ── Card ── */
 .btk-card {

@@ -850,9 +850,28 @@ var KanbanView = class extends import_obsidian2.Component {
     return this.compactMode;
   }
   // ── Column building ────────────────────────────────────────────────────
+  getAllVaultColumnValues() {
+    var _a;
+    const prop = this.getColumnProp();
+    const values = /* @__PURE__ */ new Set();
+    const cache = this.obsApp.metadataCache;
+    for (const file of this.obsApp.vault.getMarkdownFiles()) {
+      const fm = (_a = cache.getFileCache(file)) == null ? void 0 : _a.frontmatter;
+      if (fm && prop in fm) {
+        const val = fm[prop];
+        if (val != null && String(val).trim() !== "") {
+          values.add(String(val).trim());
+        }
+      }
+    }
+    return values;
+  }
   buildColumns(entries) {
     const prop = this.getColumnProp();
     const buckets = /* @__PURE__ */ new Map();
+    for (const key of this.getAllVaultColumnValues()) {
+      buckets.set(key, []);
+    }
     for (const entry of entries) {
       const val = getEntryProp(entry, prop);
       const key = val != null && String(val).trim() !== "" ? String(val).trim() : "\u2014";
@@ -955,6 +974,10 @@ var KanbanView = class extends import_obsidian2.Component {
       text: String(col.entries.length)
     });
     const cards = column.createDiv("btk-column-cards");
+    if (col.entries.length === 0) {
+      const empty = cards.createDiv("btk-col-empty");
+      empty.setText("Drop here");
+    }
     for (const entry of col.entries) {
       this.renderCard(
         cards,
