@@ -109,6 +109,16 @@ export default class ExtendedViewsPlugin extends Plugin {
               step: 1,
               default: 0,
             },
+            {
+              displayName: "Max height",
+              type: "slider",
+              key: "maxHeight",
+              description: "Limit board height (0 = auto, else px)",
+              min: 0,
+              max: 2000,
+              step: 50,
+              default: 0,
+            },
           ],
         },
         {

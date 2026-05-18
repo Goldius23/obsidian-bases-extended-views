@@ -8,6 +8,10 @@ import {
   hashColor,
 } from "./helpers";
 
+const IMAGE_EXTS = new Set([
+  "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif",
+]);
+
 // ── KanbanView ──────────────────────────────────────────────────────────────
 
 export class KanbanView extends Component {
@@ -152,6 +156,18 @@ export class KanbanView extends Component {
     return this.compactMode;
   }
 
+  getMaxHeight(): number {
+    const vc = this.getViewConfig();
+    const data = vc?.data as Record<string, unknown> | undefined;
+    const raw = data?.maxHeight;
+    if (typeof raw === "number") return raw;
+    if (typeof raw === "string") {
+      const n = parseFloat(raw);
+      if (!isNaN(n)) return n;
+    }
+    return 0;
+  }
+
   // ── Column building ────────────────────────────────────────────────────
 
   private getAllVaultColumnValues(): Set<string> {
@@ -214,6 +230,16 @@ export class KanbanView extends Component {
 
     if (this.isCompact()) this.containerEl.addClass("btk-compact");
     else this.containerEl.removeClass("btk-compact");
+
+    // Max height — clip and scroll board vertically
+    const maxH = this.getMaxHeight();
+    if (maxH > 0) {
+      this.containerEl.style.maxHeight = `${maxH}px`;
+      this.containerEl.addClass("btk-clipped");
+    } else {
+      this.containerEl.style.maxHeight = "";
+      this.containerEl.removeClass("btk-clipped");
+    }
 
     if (!results || results.size === 0) {
       this.renderEmpty();
@@ -372,6 +398,11 @@ export class KanbanView extends Component {
       }
     }
 
+    // Cover image
+    const coverDiv = card.createDiv("btk-card-cover");
+    this.renderCover(coverDiv, entry);
+    if (!coverDiv.hasChildNodes()) coverDiv.remove();
+
     // Title
     const title = card.createDiv("btk-card-title");
     title.setText(entry.file.basename);
@@ -409,10 +440,9 @@ export class KanbanView extends Component {
           cls: "btk-card-prop-key",
           text: stripped,
         });
-        row.createSpan({
-          cls: "btk-card-prop-val",
-          text: String(val),
-        });
+        row.createSpan({ cls: "btk-card-prop-sep", text: ": " });
+        const valSpan = row.createSpan("btk-card-prop-val");
+        this.renderValueInline(valSpan, String(val));
       }
     }
   }
@@ -433,6 +463,111 @@ export class KanbanView extends Component {
       }
     );
     // Bases detects the file change → re-runs query → calls onDataUpdated() → render()
+  }
+
+  private resolveVaultImage(
+    name: string,
+    app: BasesEntry["app"]
+  ): TFile | null {
+    let f = app.vault.getAbstractFileByPath(name);
+    if (!f)
+      f =
+        app.vault
+          .getFiles()
+          .find(
+            (x) => x.name === name || x.basename === name
+          ) ?? null;
+    return f instanceof TFile &&
+      IMAGE_EXTS.has(f.extension.toLowerCase())
+      ? f
+      : null;
+  }
+
+  private renderCover(parent: HTMLElement, entry: BasesEntry) {
+    const coverProp = this.getCoverProp();
+    if (!coverProp) return;
+
+    const raw = getEntryProp(entry, coverProp);
+    if (raw == null) return;
+
+    const str = String(raw).trim();
+    if (str === "") return;
+
+    // Wikilink to vault image
+    const wikiMatch = str.match(/^\[\[([^\]|]+)/);
+    if (wikiMatch) {
+      const imgFile = this.resolveVaultImage(
+        wikiMatch[1],
+        entry.app
+      );
+      if (imgFile) {
+        const img = parent.createEl("img", {
+          cls: "btk-card-cover-img",
+        });
+        img.setAttr("draggable", "false");
+        img.src = entry.app.vault.getResourcePath(imgFile);
+        img.addEventListener("error", () => img.remove());
+        return;
+      }
+    }
+
+    // HTTP URL to image
+    if (str.startsWith("http://") || str.startsWith("https://")) {
+      const img = parent.createEl("img", {
+        cls: "btk-card-cover-img",
+      });
+      img.setAttr("draggable", "false");
+      img.src = str;
+      img.addEventListener("error", () => img.remove());
+      return;
+    }
+
+    // Plain text — try as Lucide icon name
+    try {
+      setIcon(
+        parent.createDiv("btk-card-cover-icon"),
+        str.replace(/^lucide-/, "")
+      );
+    } catch {
+      // not a valid icon, skip
+    }
+  }
+
+  private renderValueInline(parent: HTMLElement, raw: string) {
+    const wikiRe = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+    let last = 0;
+    let hasLinks = false;
+    let match: RegExpExecArray | null;
+    const frag = document.createDocumentFragment();
+
+    while ((match = wikiRe.exec(raw)) !== null) {
+      hasLinks = true;
+      if (match.index > last)
+        frag.appendChild(
+          document.createTextNode(raw.slice(last, match.index))
+        );
+      const target = match[1].trim();
+      const label = (match[2] ?? match[1]).trim();
+      const link = document.createElement("span");
+      link.className = "btk-link";
+      link.textContent = label;
+      link.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.obsApp.workspace.openLinkText(target, "", false);
+      });
+      frag.appendChild(link);
+      last = match.index + match[0].length;
+    }
+
+    if (!hasLinks) {
+      parent.appendText(raw);
+      return;
+    }
+    if (last < raw.length)
+      frag.appendChild(
+        document.createTextNode(raw.slice(last))
+      );
+    parent.appendChild(frag);
   }
 
   private renderEmpty() {

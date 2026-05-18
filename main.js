@@ -740,6 +740,16 @@ ${fmtDate(effectiveStart)}${ed ? ` \u2192 ${fmtDate(ed)}` : ""}`
 
 // src/KanbanView.ts
 var import_obsidian2 = require("obsidian");
+var IMAGE_EXTS = /* @__PURE__ */ new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "svg",
+  "bmp",
+  "avif"
+]);
 var KanbanView = class extends import_obsidian2.Component {
   constructor(app, controller, containerEl) {
     super();
@@ -849,6 +859,17 @@ var KanbanView = class extends import_obsidian2.Component {
   isCompact() {
     return this.compactMode;
   }
+  getMaxHeight() {
+    const vc = this.getViewConfig();
+    const data = vc == null ? void 0 : vc.data;
+    const raw = data == null ? void 0 : data.maxHeight;
+    if (typeof raw === "number") return raw;
+    if (typeof raw === "string") {
+      const n = parseFloat(raw);
+      if (!isNaN(n)) return n;
+    }
+    return 0;
+  }
   // ── Column building ────────────────────────────────────────────────────
   getAllVaultColumnValues() {
     var _a;
@@ -891,6 +912,14 @@ var KanbanView = class extends import_obsidian2.Component {
     this.containerEl.addClass("btk-root");
     if (this.isCompact()) this.containerEl.addClass("btk-compact");
     else this.containerEl.removeClass("btk-compact");
+    const maxH = this.getMaxHeight();
+    if (maxH > 0) {
+      this.containerEl.style.maxHeight = `${maxH}px`;
+      this.containerEl.addClass("btk-clipped");
+    } else {
+      this.containerEl.style.maxHeight = "";
+      this.containerEl.removeClass("btk-clipped");
+    }
     if (!results || results.size === 0) {
       this.renderEmpty();
       return;
@@ -1012,6 +1041,9 @@ var KanbanView = class extends import_obsidian2.Component {
         bar.style.background = hashColor(String(cv));
       }
     }
+    const coverDiv = card.createDiv("btk-card-cover");
+    this.renderCover(coverDiv, entry);
+    if (!coverDiv.hasChildNodes()) coverDiv.remove();
     const title = card.createDiv("btk-card-title");
     title.setText(entry.file.basename);
     title.addEventListener("click", () => {
@@ -1042,10 +1074,9 @@ var KanbanView = class extends import_obsidian2.Component {
           cls: "btk-card-prop-key",
           text: stripped
         });
-        row.createSpan({
-          cls: "btk-card-prop-val",
-          text: String(val)
-        });
+        row.createSpan({ cls: "btk-card-prop-sep", text: ": " });
+        const valSpan = row.createSpan("btk-card-prop-val");
+        this.renderValueInline(valSpan, String(val));
       }
     }
   }
@@ -1063,6 +1094,90 @@ var KanbanView = class extends import_obsidian2.Component {
         }
       }
     );
+  }
+  resolveVaultImage(name, app) {
+    var _a;
+    let f = app.vault.getAbstractFileByPath(name);
+    if (!f)
+      f = (_a = app.vault.getFiles().find(
+        (x) => x.name === name || x.basename === name
+      )) != null ? _a : null;
+    return f instanceof import_obsidian2.TFile && IMAGE_EXTS.has(f.extension.toLowerCase()) ? f : null;
+  }
+  renderCover(parent, entry) {
+    const coverProp = this.getCoverProp();
+    if (!coverProp) return;
+    const raw = getEntryProp(entry, coverProp);
+    if (raw == null) return;
+    const str = String(raw).trim();
+    if (str === "") return;
+    const wikiMatch = str.match(/^\[\[([^\]|]+)/);
+    if (wikiMatch) {
+      const imgFile = this.resolveVaultImage(
+        wikiMatch[1],
+        entry.app
+      );
+      if (imgFile) {
+        const img = parent.createEl("img", {
+          cls: "btk-card-cover-img"
+        });
+        img.setAttr("draggable", "false");
+        img.src = entry.app.vault.getResourcePath(imgFile);
+        img.addEventListener("error", () => img.remove());
+        return;
+      }
+    }
+    if (str.startsWith("http://") || str.startsWith("https://")) {
+      const img = parent.createEl("img", {
+        cls: "btk-card-cover-img"
+      });
+      img.setAttr("draggable", "false");
+      img.src = str;
+      img.addEventListener("error", () => img.remove());
+      return;
+    }
+    try {
+      (0, import_obsidian2.setIcon)(
+        parent.createDiv("btk-card-cover-icon"),
+        str.replace(/^lucide-/, "")
+      );
+    } catch (e) {
+    }
+  }
+  renderValueInline(parent, raw) {
+    var _a;
+    const wikiRe = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+    let last = 0;
+    let hasLinks = false;
+    let match;
+    const frag = document.createDocumentFragment();
+    while ((match = wikiRe.exec(raw)) !== null) {
+      hasLinks = true;
+      if (match.index > last)
+        frag.appendChild(
+          document.createTextNode(raw.slice(last, match.index))
+        );
+      const target = match[1].trim();
+      const label = ((_a = match[2]) != null ? _a : match[1]).trim();
+      const link = document.createElement("span");
+      link.className = "btk-link";
+      link.textContent = label;
+      link.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.obsApp.workspace.openLinkText(target, "", false);
+      });
+      frag.appendChild(link);
+      last = match.index + match[0].length;
+    }
+    if (!hasLinks) {
+      parent.appendText(raw);
+      return;
+    }
+    if (last < raw.length)
+      frag.appendChild(
+        document.createTextNode(raw.slice(last))
+      );
+    parent.appendChild(frag);
   }
   renderEmpty() {
     const empty = this.containerEl.createDiv("btk-empty");
@@ -1168,6 +1283,16 @@ var ExtendedViewsPlugin = class extends import_obsidian3.Plugin {
               min: 0,
               max: 1,
               step: 1,
+              default: 0
+            },
+            {
+              displayName: "Max height",
+              type: "slider",
+              key: "maxHeight",
+              description: "Limit board height (0 = auto, else px)",
+              min: 0,
+              max: 2e3,
+              step: 50,
               default: 0
             }
           ]
