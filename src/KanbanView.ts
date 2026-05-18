@@ -165,6 +165,43 @@ export class KanbanView extends Component {
 
   // ── Column building ────────────────────────────────────────────────────
 
+  private buildGroups(
+    entries: BasesEntry[],
+    vc: Record<string, unknown> | null
+  ): { key: string; count: number; entries: BasesEntry[] }[] | null {
+    const gb = vc?.groupBy as Record<string, unknown> | undefined;
+    if (!gb?.property) return null;
+    const groupProp = stripNamespace(String(gb.property));
+    const groupDir =
+      String(gb?.direction ?? "").toUpperCase() === "DESC"
+        ? "desc"
+        : "asc";
+
+    const buckets = new Map<string, BasesEntry[]>();
+    for (const entry of entries) {
+      const raw = getEntryProp(entry, groupProp);
+      let label: string;
+      if (raw == null || raw === "") label = "—";
+      else if (Array.isArray(raw))
+        label = raw.map((v) => String(v)).join(", ") || "—";
+      else label = String(raw);
+      if (!buckets.has(label)) buckets.set(label, []);
+      buckets.get(label)!.push(entry);
+    }
+
+    const sorted = Array.from(buckets.entries()).sort(([a], [b]) =>
+      groupDir === "desc"
+        ? b.localeCompare(a, undefined, { numeric: true })
+        : a.localeCompare(b, undefined, { numeric: true })
+    );
+
+    return sorted.map(([key, entries]) => ({
+      key,
+      count: entries.length,
+      entries,
+    }));
+  }
+
   private getAllVaultColumnValues(): Set<string> {
     const prop = this.getColumnProp();
     const values = new Set<string>();
@@ -258,13 +295,42 @@ export class KanbanView extends Component {
     const limit = this.getLimit();
     const limited = limit !== null ? entries.slice(0, limit) : entries;
 
-    const columns = this.buildColumns(limited);
+    const vc = this.getViewConfig();
+    const groups = this.buildGroups(limited, vc);
 
     // ── Board ──
     const board = this.containerEl.createDiv("btk-board");
-    for (const col of columns) {
-      this.renderColumn(board, col);
+
+    if (groups) {
+      board.addClass("btk-grouped");
+      for (const group of groups) {
+        this.renderGroupHeader(board, group.key, group.count);
+        const groupBody = board.createDiv("btk-group-body");
+        const columns = this.buildColumns(group.entries);
+        for (const col of columns) {
+          this.renderColumn(groupBody, col);
+        }
+      }
+    } else {
+      const columns = this.buildColumns(limited);
+      for (const col of columns) {
+        this.renderColumn(board, col);
+      }
     }
+  }
+
+  private renderGroupHeader(
+    parent: HTMLElement,
+    key: string,
+    count: number
+  ) {
+    const header = parent.createDiv("btk-group-header");
+    const label = header.createSpan("btk-group-label");
+    this.renderValueInline(label, key);
+    header.createSpan({
+      cls: "btk-group-count",
+      text: String(count),
+    });
   }
 
   private renderColumn(

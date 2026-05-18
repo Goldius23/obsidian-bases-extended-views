@@ -867,6 +867,32 @@ var KanbanView = class extends import_obsidian2.Component {
     return 0;
   }
   // ── Column building ────────────────────────────────────────────────────
+  buildGroups(entries, vc) {
+    var _a;
+    const gb = vc == null ? void 0 : vc.groupBy;
+    if (!(gb == null ? void 0 : gb.property)) return null;
+    const groupProp = stripNamespace(String(gb.property));
+    const groupDir = String((_a = gb == null ? void 0 : gb.direction) != null ? _a : "").toUpperCase() === "DESC" ? "desc" : "asc";
+    const buckets = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      const raw = getEntryProp(entry, groupProp);
+      let label;
+      if (raw == null || raw === "") label = "\u2014";
+      else if (Array.isArray(raw))
+        label = raw.map((v) => String(v)).join(", ") || "\u2014";
+      else label = String(raw);
+      if (!buckets.has(label)) buckets.set(label, []);
+      buckets.get(label).push(entry);
+    }
+    const sorted = Array.from(buckets.entries()).sort(
+      ([a], [b]) => groupDir === "desc" ? b.localeCompare(a, void 0, { numeric: true }) : a.localeCompare(b, void 0, { numeric: true })
+    );
+    return sorted.map(([key, entries2]) => ({
+      key,
+      count: entries2.length,
+      entries: entries2
+    }));
+  }
   getAllVaultColumnValues() {
     var _a;
     const prop = this.getColumnProp();
@@ -934,11 +960,34 @@ var KanbanView = class extends import_obsidian2.Component {
     }
     const limit = this.getLimit();
     const limited = limit !== null ? entries.slice(0, limit) : entries;
-    const columns = this.buildColumns(limited);
+    const vc = this.getViewConfig();
+    const groups = this.buildGroups(limited, vc);
     const board = this.containerEl.createDiv("btk-board");
-    for (const col of columns) {
-      this.renderColumn(board, col);
+    if (groups) {
+      board.addClass("btk-grouped");
+      for (const group of groups) {
+        this.renderGroupHeader(board, group.key, group.count);
+        const groupBody = board.createDiv("btk-group-body");
+        const columns = this.buildColumns(group.entries);
+        for (const col of columns) {
+          this.renderColumn(groupBody, col);
+        }
+      }
+    } else {
+      const columns = this.buildColumns(limited);
+      for (const col of columns) {
+        this.renderColumn(board, col);
+      }
     }
+  }
+  renderGroupHeader(parent, key, count) {
+    const header = parent.createDiv("btk-group-header");
+    const label = header.createSpan("btk-group-label");
+    this.renderValueInline(label, key);
+    header.createSpan({
+      cls: "btk-group-count",
+      text: String(count)
+    });
   }
   renderColumn(board, col) {
     const cardWidth = this.getCardWidth();

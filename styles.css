@@ -346,6 +346,39 @@
   overflow-y: hidden;
   align-items: flex-start;
 }
+.btk-board.btk-grouped {
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+}
+
+/* ── Group ── */
+.btk-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 4px;
+  flex-shrink: 0;
+}
+.btk-group-label {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+.btk-group-count {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  background: var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+.btk-group-body {
+  display: flex;
+  gap: 12px;
+  padding: 0 12px 8px;
+  align-items: flex-start;
+}
 
 /* ── Column ── */
 .btk-column {
